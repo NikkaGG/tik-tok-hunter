@@ -177,8 +177,9 @@ class TestAutoComment(unittest.TestCase):
              patch("app.workers.tiktok_search.open_context", mock_open_context), \
              patch("app.workers.tiktok_search.post_comment_on_video", side_effect=mock_post), \
              patch("asyncio.sleep", new_callable=AsyncMock):
-            with self.assertRaisesRegex(RuntimeError, "Ошибка"):
-                tasks._run_auto_comment(99, {"account_id": acc.id, "delay_min_s": 1, "delay_max_s": 1})
+            result, count = tasks._run_auto_comment(99, {"account_id": acc.id, "delay_min_s": 1, "delay_max_s": 1})
+            self.assertEqual(count, 1)
+            self.assertIn("ошибок: 1", result)
 
             # Check DB state
             self.db.refresh(d1)
