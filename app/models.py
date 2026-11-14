@@ -33,6 +33,7 @@ class TaskStatus(StrEnum):
     QUEUED = "queued"
     RUNNING = "running"
     DONE = "done"
+    PARTIAL = "partial"  # completed with per-video errors
     FAILED = "failed"
     CANCELLED = "cancelled"
 
