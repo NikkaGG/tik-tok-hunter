@@ -620,12 +620,21 @@ async def _has_video_or_comments(page: Page) -> bool:
 
 
 async def _find_unavailable_text(page: Page) -> str | None:
-    for t in _UNAVAILABLE_TEXTS:
+    """Inspect only the main video's error indicators, not recommendations/comments."""
+    selectors = ('[data-e2e="video-error"]', '[data-e2e="video-not-found"]',
+                 '[data-e2e="error-message"]', 'main [role="alert"]',
+                 'main h1', 'main h2')
+    for selector in selectors:
         try:
-            if await page.get_by_text(t, exact=False).first.is_visible(timeout=300):
-                return t
+            node = page.locator(selector).first
+            if not await node.is_visible(timeout=200):
+                continue
+            text = (await node.inner_text(timeout=500)).strip().casefold()
+            for marker in _UNAVAILABLE_TEXTS:
+                if text == marker.casefold() or (len(text) <= 170 and marker.casefold() in text):
+                    return marker
         except Exception:
-            pass
+            continue
     return None
 
 
@@ -964,6 +973,8 @@ async def _navigate_to_video(page: Page, video_url: str) -> CommentResult | None
                     observed.setdefault("retry_after", response.headers.get("retry-after"))
             except Exception as exc:
                 failure = f"{type(exc).__name__}: {str(exc)[:200]}"
+                # Let pending Playwright response listeners observe the main document.
+                await asyncio.sleep(0)
             status = observed.get("status")
             elapsed = monotonic() - started
             final_url = observed.get("url") or (page.url if isinstance(page.url, str) else video_url)
