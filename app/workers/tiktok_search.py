@@ -716,6 +716,10 @@ async def _check_video_availability(page: Page) -> tuple[bool | None, str | None
             return True, None
         matched = await _find_unavailable_text(page)
         if not matched:
+            detail = await _video_detail_status(page)
+            if str(detail.get("statusCode")) == "10204":
+                return None, (f"Неоднозначный ответ TikTok: statusCode={detail.get('statusCode')}, "
+                              f"statusMsg={str(detail.get('statusMsg'))[:160]}. Черновик сохранён")
             return None, "Страница ролика не загрузилась: видео и комментарии не появились"
 
     if await _cross_region_block(page):
@@ -725,7 +729,12 @@ async def _check_video_availability(page: Page) -> tuple[bool | None, str | None
         return None, (f"Неоднозначный ответ TikTok: statusCode={detail.get('statusCode')}, "
                       f"statusMsg={str(detail.get('statusMsg'))[:160]}. Черновик сохранён")
 
+    if matched.casefold() in ("this video is private", "this video has been removed", "видео удалено"):
+        return False, f"Ролик недоступен ({matched})"
+
     if await _recover_video_page(page):
+        if await _cross_region_block(page):
+            return False, "TikTok ограничил просмотр этого ролика между регионами для данного аккаунта (код 10204)"
         return True, None
 
     matched_after = await _find_unavailable_text(page)
