@@ -195,6 +195,8 @@ class DraftOut(BaseModel):
     repeated: bool = False
     result: str | None = None
     task_id: int | None = None
+    last_task_id: int | None = None
+    error_code: str | None = None
 
 
 # ---------- Задачи и сессия парсера ----------
@@ -242,6 +244,7 @@ class TaskOut(BaseModel):
     error: str | None
     created_at: datetime
     finished_at: datetime | None
+    summary: dict[str, int] | None = None
 
     @field_validator("params", mode="before")
     @classmethod

@@ -61,7 +61,7 @@ def ensure_schema(target_engine=engine) -> None:
     with target_engine.begin() as conn:
         for table, additions in {
             "accounts": {"session_status": "VARCHAR(16) DEFAULT 'missing'", "session_checked_at": "DATETIME", "session_error": "TEXT"},
-            "drafts": {"text_set_id": "INTEGER", "variant_id": "INTEGER", "task_id": "INTEGER", "sending": "INTEGER DEFAULT 0", "result": "TEXT", "repeated": "INTEGER DEFAULT 0"},
+            "drafts": {"text_set_id": "INTEGER", "variant_id": "INTEGER", "task_id": "INTEGER", "last_task_id": "INTEGER", "error_code": "VARCHAR(32)", "sending": "INTEGER DEFAULT 0", "result": "TEXT", "repeated": "INTEGER DEFAULT 0"},
         }.items():
             columns = {r[1] for r in conn.exec_driver_sql(f"PRAGMA table_info({table})")}
             for name, definition in additions.items():

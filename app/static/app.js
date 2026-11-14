@@ -45,7 +45,7 @@ const BADGE = {
   new: 'bg-sky-100 text-sky-700', relevant: 'bg-emerald-100 text-emerald-700',
   irrelevant: 'bg-slate-200 text-slate-500', replied: 'bg-violet-100 text-violet-700',
   queued: 'bg-slate-200 text-slate-600', running: 'bg-sky-100 text-sky-700',
-  done: 'bg-emerald-100 text-emerald-700', failed: 'bg-rose-100 text-rose-700',
+  done: 'bg-emerald-100 text-emerald-700', partial: 'bg-amber-100 text-amber-800', failed: 'bg-rose-100 text-rose-700',
   cancelled: 'bg-slate-200 text-slate-600',
   draft: 'bg-sky-100 text-sky-700', sent: 'bg-emerald-100 text-emerald-700', skipped: 'bg-slate-200 text-slate-500',
   INFO: 'text-slate-500', WARNING: 'text-amber-600', ERROR: 'text-rose-600',
@@ -53,11 +53,12 @@ const BADGE = {
 const LABEL = {
   active: 'активен', working: 'в работе', paused: 'пауза', warning: 'предупреждение', banned: 'заблокирован',
   new: 'новый', relevant: 'подходит', irrelevant: 'не подходит', replied: 'отвечено',
-  queued: 'в очереди', running: 'выполняется', done: 'готово', failed: 'ошибка', cancelled: 'отменено',
+  queued: 'в очереди', running: 'выполняется', done: 'готово', partial: 'с ошибками', failed: 'ошибка', cancelled: 'отменено',
   draft: 'черновик', sent: 'отправлен', skipped: 'пропущен',
   search: 'поиск', login: 'вход', check_session: 'проверка сессии', test_proxy: 'проверка прокси',
   auto_comment: 'автокомментарии',
 };
+const taskCountText = (s) => s ? `Отправлено: ${s.published}, пропущено: ${s.skipped}, ошибок: ${s.errors}, проверить: ${s.review}, не обработано: ${s.unprocessed}` : null;
 const badge = (v) => `<span class="text-xs px-2 py-0.5 rounded-full ${BADGE[v] || 'bg-slate-100'}">${esc(LABEL[v] || v)}</span>`;
 
 // Итог проверки сессии: задача может завершиться успешно, а сессия при этом оказаться недействительной.
@@ -954,7 +955,7 @@ loaders.search = async () => {
       <td class="p-3 font-medium">${esc(LABEL[t.kind] || t.kind)}</td>
       <td class="p-3 text-slate-500">${paramsSummary}</td>
       <td class="p-3">${badge(t.status)}</td>
-      <td class="p-3 ${t.error ? 'text-rose-600' : ''}">${esc(t.error || t.result || (t.status === 'running' ? (t.kind === 'search' ? `новых: ${t.found}…` : `отправлено: ${t.found}…`) : ''))}</td>
+      <td class="p-3 ${t.error ? 'text-rose-600' : ''}">${esc(t.error || taskCountText(t.summary) || t.result || (t.status === 'running' ? (t.kind === 'search' ? `новых: ${t.found}…` : `отправлено: ${t.found}…`) : ''))}</td>
       <td class="p-3 text-slate-400 whitespace-nowrap">${fmtDate(t.created_at)}</td>
       <td class="p-3 text-right">
         ${canCancel ? `<button data-cancel-task="${t.id}" class="px-2.5 py-1 text-xs rounded border border-rose-200 bg-white text-rose-600 hover:bg-rose-50 font-medium">Отменить</button>` : ''}
@@ -1212,7 +1213,7 @@ loaders.drafts = async (opts = {}) => {
   if (banner) {
     if (activeAc) {
       banner.classList.remove('hidden');
-      $('#ac-active-status').textContent = activeAc.result || (activeAc.status === 'running' ? `Отправлено: ${activeAc.found}…` : 'В очереди…');
+      $('#ac-active-status').textContent = taskCountText(activeAc.summary) || activeAc.result || (activeAc.status === 'running' ? `Отправлено: ${activeAc.found}…` : 'В очереди…');
       $('#btn-cancel-ac-task').dataset.taskId = activeAc.id;
     } else {
       banner.classList.add('hidden');
@@ -1240,7 +1241,7 @@ loaders.drafts = async (opts = {}) => {
       </div>
       ${d.repeated ? '<p class="text-sm text-amber-700">Повтор ранее использованного текста: новые варианты исчерпаны</p>' : ''}
       ${d.task_id ? `<p class="text-sm text-indigo-700">В задаче #${d.task_id}</p>` : ''}
-      ${d.result ? `<p class="text-sm text-slate-600">${esc(d.result)}</p>` : ''}
+      ${d.result ? `<p class="text-sm text-slate-600">${d.error_code ? `<span class="font-medium">${esc(d.error_code)}:</span> ` : ''}${esc(d.result)}</p>` : ''}
       ${d.status === 'review' ? `<div class="flex gap-2"><button data-resolve="true" class="px-3 py-2 border rounded-lg">Проверил: опубликовано</button><button data-resolve="false" class="px-3 py-2 border rounded-lg">Проверил: не опубликовано</button></div>` : ''}
       <textarea data-text rows="2" ${editable && !d.task_id ? '' : 'disabled'} class="w-full border rounded-lg px-2 py-1.5 disabled:bg-slate-50">${esc(d.text)}</textarea>
       <div class="flex flex-wrap items-center gap-2 text-sm">

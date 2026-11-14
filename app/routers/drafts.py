@@ -158,6 +158,8 @@ def update_draft(draft_id: int, data: DraftUpdate, db: Session = Depends(get_db)
         raise HTTPException(422, "Текст не может быть пустым")
     for field, value in changes.items():
         setattr(d, field, value)
+    if "text" in changes or "account_id" in changes:
+        d.error_code, d.result = None, None
     if "text" in changes:
         # A manually rewritten comment is no longer a verbatim library variant.
         d.variant_id = None

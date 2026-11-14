@@ -33,6 +33,7 @@ class TaskStatus(StrEnum):
     QUEUED = "queued"
     RUNNING = "running"
     DONE = "done"
+    PARTIAL = "partial"  # completed with per-video errors
     FAILED = "failed"
     CANCELLED = "cancelled"
 
@@ -94,6 +95,8 @@ class Draft(Base):
     text_set_id: Mapped[int | None] = mapped_column(Integer)
     variant_id: Mapped[int | None] = mapped_column(Integer)
     task_id: Mapped[int | None] = mapped_column(Integer, index=True)
+    last_task_id: Mapped[int | None] = mapped_column(Integer, index=True)
+    error_code: Mapped[str | None] = mapped_column(String(32))
     sending: Mapped[int] = mapped_column(Integer, default=0)
     result: Mapped[str | None] = mapped_column(Text)
     repeated: Mapped[int] = mapped_column(Integer, default=0)

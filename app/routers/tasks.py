@@ -21,9 +21,16 @@ class SessionImportIn(BaseModel):
 def selected(db, account_id=None):
     return sessions.require_account(db, account_id or app_settings.search_account_id())
 
+def _task_out(db, task):
+    item = TaskOut.model_validate(task)
+    if task.kind == "auto_comment":
+        item.summary = tasks.task_summary(db, task.id)
+    return item
+
+
 @router.get("/tasks", response_model=list[TaskOut])
 def list_tasks(limit: int = Query(30, ge=1, le=200), db: Session = Depends(get_db)):
-    return db.scalars(select(TaskRun).order_by(TaskRun.id.desc()).limit(limit)).all()
+    return [_task_out(db, t) for t in db.scalars(select(TaskRun).order_by(TaskRun.id.desc()).limit(limit))]
 
 @router.post("/tasks/search", response_model=TaskOut, status_code=202)
 @tasks.coordinated
@@ -160,9 +167,16 @@ def connect_account(data: ConnectIn):
         path.unlink(missing_ok=True)
         raise
 
+@router.get("/tasks/{task_id}/summary")
+def get_task_summary(task_id: int, db: Session = Depends(get_db)):
+    if not db.get(TaskRun, task_id):
+        raise HTTPException(404, "Задача не найдена")
+    return tasks.task_summary(db, task_id)
+
+
 @router.get("/tasks/{task_id}", response_model=TaskOut)
 def get_task(task_id: int, db: Session = Depends(get_db)):
     task = db.get(TaskRun, task_id)
     if not task:
         raise HTTPException(404, "Задача не найдена")
-    return task
+    return _task_out(db, task)

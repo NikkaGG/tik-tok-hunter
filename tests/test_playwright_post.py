@@ -33,7 +33,7 @@ class TestPlaywrightPost(unittest.IsolatedAsyncioTestCase):
             ctx.new_page.assert_not_awaited()
             page.close.assert_not_awaited()
             self.assertEqual(page.goto.await_count, 2)
-            self.assertEqual(page.remove_listener.call_count, 2)
+            self.assertEqual(page.remove_listener.call_count, 4)
         finally:
             ts.comment_page.reset(token)
 
@@ -201,7 +201,7 @@ class TestPlaywrightPost(unittest.IsolatedAsyncioTestCase):
             avail, message = await _check_video_availability(page)
         self.assertFalse(avail)
         self.assertIn("между регионами", message)
-        self.assertEqual(_availability_error(avail, message).error_code, "page_unavailable")
+        self.assertEqual(_availability_error(avail, message).error_code, "region_restricted")
         recover.assert_not_awaited()
 
     async def test_navigation_failure_does_not_skip_video(self):
@@ -211,7 +211,8 @@ class TestPlaywrightPost(unittest.IsolatedAsyncioTestCase):
         page.close = AsyncMock()
         with patch("app.workers.tiktok_search._has_session", new_callable=AsyncMock, return_value=True):
             result = await post_comment_on_video(ctx, "https://www.tiktok.com/@u/video/1", "text")
-        self.assertEqual(result.error_code, "page_unavailable")
+        self.assertEqual(result.error_code, "navigation_failed")
+        self.assertEqual(page.goto.await_count, 3)
 
     async def test_unavailable_after_reload_is_not_reported_as_missing_editor(self):
         ctx, page = MagicMock(), MagicMock()

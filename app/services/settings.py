@@ -155,3 +155,8 @@ def search_account_id() -> int | None:
 
 def monitor_interval_minutes() -> int:
     return max(0, min(1440, int(load().get("monitor_interval_minutes", 15))))
+
+
+def network_failure_threshold() -> int:
+    """Consecutive failed video navigations before stopping one account."""
+    return max(1, min(10, int(load().get("network_failure_threshold", 3))))
