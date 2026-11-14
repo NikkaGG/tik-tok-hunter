@@ -45,7 +45,7 @@ const BADGE = {
   new: 'bg-sky-100 text-sky-700', relevant: 'bg-emerald-100 text-emerald-700',
   irrelevant: 'bg-slate-200 text-slate-500', replied: 'bg-violet-100 text-violet-700',
   queued: 'bg-slate-200 text-slate-600', running: 'bg-sky-100 text-sky-700',
-  done: 'bg-emerald-100 text-emerald-700', failed: 'bg-rose-100 text-rose-700',
+  done: 'bg-emerald-100 text-emerald-700', partial: 'bg-amber-100 text-amber-800', failed: 'bg-rose-100 text-rose-700',
   cancelled: 'bg-slate-200 text-slate-600',
   draft: 'bg-sky-100 text-sky-700', sent: 'bg-emerald-100 text-emerald-700', skipped: 'bg-slate-200 text-slate-500',
   INFO: 'text-slate-500', WARNING: 'text-amber-600', ERROR: 'text-rose-600',
@@ -53,7 +53,7 @@ const BADGE = {
 const LABEL = {
   active: 'активен', working: 'в работе', paused: 'пауза', warning: 'предупреждение', banned: 'заблокирован',
   new: 'новый', relevant: 'подходит', irrelevant: 'не подходит', replied: 'отвечено',
-  queued: 'в очереди', running: 'выполняется', done: 'готово', failed: 'ошибка', cancelled: 'отменено',
+  queued: 'в очереди', running: 'выполняется', done: 'готово', partial: 'с ошибками', failed: 'ошибка', cancelled: 'отменено',
   draft: 'черновик', sent: 'отправлен', skipped: 'пропущен',
   search: 'поиск', login: 'вход', check_session: 'проверка сессии', test_proxy: 'проверка прокси',
   auto_comment: 'автокомментарии',
@@ -1240,7 +1240,7 @@ loaders.drafts = async (opts = {}) => {
       </div>
       ${d.repeated ? '<p class="text-sm text-amber-700">Повтор ранее использованного текста: новые варианты исчерпаны</p>' : ''}
       ${d.task_id ? `<p class="text-sm text-indigo-700">В задаче #${d.task_id}</p>` : ''}
-      ${d.result ? `<p class="text-sm text-slate-600">${esc(d.result)}</p>` : ''}
+      ${d.result ? `<p class="text-sm text-slate-600">${d.error_code ? `<span class="font-medium">${esc(d.error_code)}:</span> ` : ''}${esc(d.result)}</p>` : ''}
       ${d.status === 'review' ? `<div class="flex gap-2"><button data-resolve="true" class="px-3 py-2 border rounded-lg">Проверил: опубликовано</button><button data-resolve="false" class="px-3 py-2 border rounded-lg">Проверил: не опубликовано</button></div>` : ''}
       <textarea data-text rows="2" ${editable && !d.task_id ? '' : 'disabled'} class="w-full border rounded-lg px-2 py-1.5 disabled:bg-slate-50">${esc(d.text)}</textarea>
       <div class="flex flex-wrap items-center gap-2 text-sm">
