@@ -58,6 +58,7 @@ const LABEL = {
   search: 'поиск', login: 'вход', check_session: 'проверка сессии', test_proxy: 'проверка прокси',
   auto_comment: 'автокомментарии',
 };
+const taskCountText = (s) => s ? `Отправлено: ${s.published}, пропущено: ${s.skipped}, ошибок: ${s.errors}, проверить: ${s.review}, не обработано: ${s.unprocessed}` : null;
 const badge = (v) => `<span class="text-xs px-2 py-0.5 rounded-full ${BADGE[v] || 'bg-slate-100'}">${esc(LABEL[v] || v)}</span>`;
 
 // Итог проверки сессии: задача может завершиться успешно, а сессия при этом оказаться недействительной.
@@ -954,7 +955,7 @@ loaders.search = async () => {
       <td class="p-3 font-medium">${esc(LABEL[t.kind] || t.kind)}</td>
       <td class="p-3 text-slate-500">${paramsSummary}</td>
       <td class="p-3">${badge(t.status)}</td>
-      <td class="p-3 ${t.error ? 'text-rose-600' : ''}">${esc(t.error || t.result || (t.status === 'running' ? (t.kind === 'search' ? `новых: ${t.found}…` : `отправлено: ${t.found}…`) : ''))}</td>
+      <td class="p-3 ${t.error ? 'text-rose-600' : ''}">${esc(t.error || taskCountText(t.summary) || t.result || (t.status === 'running' ? (t.kind === 'search' ? `новых: ${t.found}…` : `отправлено: ${t.found}…`) : ''))}</td>
       <td class="p-3 text-slate-400 whitespace-nowrap">${fmtDate(t.created_at)}</td>
       <td class="p-3 text-right">
         ${canCancel ? `<button data-cancel-task="${t.id}" class="px-2.5 py-1 text-xs rounded border border-rose-200 bg-white text-rose-600 hover:bg-rose-50 font-medium">Отменить</button>` : ''}
@@ -1212,7 +1213,7 @@ loaders.drafts = async (opts = {}) => {
   if (banner) {
     if (activeAc) {
       banner.classList.remove('hidden');
-      $('#ac-active-status').textContent = activeAc.result || (activeAc.status === 'running' ? `Отправлено: ${activeAc.found}…` : 'В очереди…');
+      $('#ac-active-status').textContent = taskCountText(activeAc.summary) || activeAc.result || (activeAc.status === 'running' ? `Отправлено: ${activeAc.found}…` : 'В очереди…');
       $('#btn-cancel-ac-task').dataset.taskId = activeAc.id;
     } else {
       banner.classList.add('hidden');
