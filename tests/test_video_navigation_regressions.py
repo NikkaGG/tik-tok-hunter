@@ -23,7 +23,7 @@ class NavigationRegressions(unittest.IsolatedAsyncioTestCase):
             response.request.is_navigation_request.return_value = True
             response.request.frame = page.main_frame
             if "response" in listeners:
-                listeners["response"](response)
+                await listeners["response"](response)
             if status >= 400:
                 raise RuntimeError("Page.goto: net::ERR_HTTP_RESPONSE_CODE_FAILURE")
             return response
