@@ -20,6 +20,10 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -r requirements.txt
           python -m playwright install --with-deps chromium
+      - name: Check Python and JavaScript syntax
+        run: |
+          python -m compileall -q app tests
+          node --check app/static/app.js
       - name: Run baseline and regression unit tests
         env:
           TTLH_DATA_DIR: ${{ runner.temp }}/tik-tok-hunter-data
