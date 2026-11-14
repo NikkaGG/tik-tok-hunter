@@ -603,6 +603,7 @@ def submit_batch(data):
                 d.task_id = task.id
                 d.last_task_id = task.id
                 d.error_code = None
+                d.result = None
                 if not db.scalar(select(TextUse.id).where(TextUse.draft_id == d.id, TextUse.state == "reserved")):
                     text_library.record(db, d)
                 db.execute(update(TextUse).where(TextUse.draft_id == d.id, TextUse.state == "reserved").values(account_id=aid))
