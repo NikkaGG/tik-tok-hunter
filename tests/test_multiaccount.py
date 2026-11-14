@@ -722,7 +722,7 @@ class MultiAccountTests(unittest.TestCase):
             row = next(v for v in monitor.snapshot(self.db)['accounts'] if v['id'] == aid)
             self.assertEqual(row['tone'], tone)
 
-    def test_temporary_video_unavailability_preserves_draft_and_stops_batch(self):
+    def test_temporary_video_unavailability_preserves_draft_and_continues_batch(self):
         aid = self.accounts[0].id
         dids = [self.prepare([video.id], [aid])['created'][0]['id'] for video in self.videos[:2]]
         with patch.object(tasks, 'enqueue'):
@@ -737,7 +737,8 @@ class MultiAccountTests(unittest.TestCase):
                           return_value=CommentResult(False, 'Видео недоступно', 'page_unavailable')) as post:
             tasks._execute(job.id)
         self.db.expire_all()
-        self.assertEqual(post.await_count, 1)
+        self.assertEqual(post.await_count, 2)
+        self.assertEqual(tasks.task_summary(self.db, job.id)["errors"], 2)
         for did in dids:
             draft = self.db.get(Draft, did)
             self.assertEqual(draft.status, 'draft')
