@@ -139,3 +139,32 @@ class NavigationRegressions(unittest.IsolatedAsyncioTestCase):
             finally:
                 await browser.close()
 
+
+    async def test_private_video_is_not_reloaded(self):
+        page = MagicMock()
+        with patch.object(ts, "_has_video_or_comments", new_callable=AsyncMock, return_value=False), \
+             patch.object(ts, "_find_unavailable_text", new_callable=AsyncMock, return_value="This video is private"), \
+             patch.object(ts, "_cross_region_block", new_callable=AsyncMock, return_value=False), \
+             patch.object(ts, "_video_detail_status", new_callable=AsyncMock, return_value={}), \
+             patch.object(ts, "_recover_video_page", new_callable=AsyncMock) as retry:
+            availability, message = await ts._check_video_availability(page)
+        self.assertFalse(availability)
+        self.assertIn("private", message)
+        retry.assert_not_awaited()
+        self.assertEqual(ts._availability_error(availability, message).error_code, "video_unavailable")
+
+    async def test_ambiguous_10204_preserves_raw_fields_and_does_not_retry(self):
+        page = MagicMock()
+        page.locator.return_value.first.wait_for = AsyncMock()
+        with patch.object(ts, "_has_video_or_comments", new_callable=AsyncMock, return_value=False), \
+             patch.object(ts, "_find_unavailable_text", new_callable=AsyncMock, return_value=None), \
+             patch.object(ts, "_cross_region_block", new_callable=AsyncMock, return_value=False), \
+             patch.object(ts, "_video_detail_status", new_callable=AsyncMock,
+                          return_value={"statusCode": 10204, "statusMsg": "other_reason"}), \
+             patch.object(ts, "_recover_video_page", new_callable=AsyncMock) as retry:
+            availability, message = await ts._check_video_availability(page)
+        self.assertIsNone(availability)
+        self.assertIn("statusCode=10204", message)
+        self.assertIn("other_reason", message)
+        retry.assert_not_awaited()
+        self.assertNotEqual(ts._availability_error(availability, message).error_code, "region_restricted")
