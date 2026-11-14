@@ -16,6 +16,10 @@ import logging
 import random
 import re
 import sys
+from time import monotonic
+from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
+from app.services.logs import log_event
 from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
 from contextvars import ContextVar
@@ -38,6 +42,9 @@ comment_visible = ContextVar("comment_visible", default=None)
 captcha_visible = ContextVar("captcha_visible", default=False)
 session_verified = ContextVar("session_verified", default=False)
 _API_MARKERS = ("/api/search/", "/api/challenge/item_list")
+VIDEO_NAV_MAX_ATTEMPTS = 3
+VIDEO_NAV_BASE_DELAY_S = 1.5
+VIDEO_NAV_MAX_DELAY_S = 30
 
 
 class SessionError(RuntimeError):
@@ -622,20 +629,32 @@ async def _find_unavailable_text(page: Page) -> str | None:
     return None
 
 
-async def _cross_region_block(page: Page) -> bool:
-    """Read TikTok's page status only; never change the account or its cookies."""
+async def _video_detail_status(page: Page) -> dict:
+    """Only the current video's structured hydration data; never sidebar/comment strings."""
     try:
-        return bool(await page.evaluate("""() => {
+        value = await page.evaluate("""() => {
             try {
                 const node = document.getElementById('__UNIVERSAL_DATA_FOR_REHYDRATION__');
-                if (!node) return false;
-                const data = JSON.parse(node.textContent).__DEFAULT_SCOPE__?.['webapp.video-detail'];
-                return data?.statusCode === 10204 &&
-                    typeof data.statusMsg === 'string' && data.statusMsg.includes('ru_cross_border_block');
-            } catch { return false; }
-        }"""))
+                const detail = JSON.parse(node?.textContent || '{}')
+                    .__DEFAULT_SCOPE__?.['webapp.video-detail'];
+                if (!detail || typeof detail !== 'object') return null;
+                const videoId = detail.itemInfo?.itemStruct?.id || null;
+                const currentId = location.pathname.match(/\\/(?:video|photo)\\/(\\d+)/)?.[1];
+                if (videoId && currentId && String(videoId) !== currentId) return null;
+                return {statusCode: detail.statusCode, statusMsg: detail.statusMsg, videoId};
+            } catch { return null; }
+        }""")
+        return value if isinstance(value, dict) else {}
     except Exception:
-        return False
+        return {}
+
+
+async def _cross_region_block(page: Page) -> bool:
+    """Requires matching code AND cross-border marker from this video's structured data."""
+    detail = await _video_detail_status(page)
+    return str(detail.get("statusCode")) == "10204" and (
+        "ru_cross_border_block" in str(detail.get("statusMsg") or "").lower()
+    )
 
 
 async def _recover_video_page(page: Page) -> bool:
@@ -671,6 +690,8 @@ async def _recover_video_page(page: Page) -> bool:
 async def _check_video_availability(page: Page) -> tuple[bool | None, str | None]:
     """Проверяет, доступно ли видео для просмотра, с защитой от ложных срабатываний
     и автоматической перезагрузкой при временном сбое TikTok («Страница не найдена»)."""
+    if await _cross_region_block(page):
+        return False, "TikTok ограничил просмотр этого ролика между регионами для данного аккаунта (код 10204)"
     if await _has_video_or_comments(page):
         return True, None
 
@@ -690,6 +711,10 @@ async def _check_video_availability(page: Page) -> tuple[bool | None, str | None
 
     if await _cross_region_block(page):
         return False, "TikTok ограничил просмотр этого ролика между регионами для данного аккаунта (код 10204)"
+    detail = await _video_detail_status(page)
+    if str(detail.get("statusCode")) == "10204":
+        return None, (f"Неоднозначный ответ TikTok: statusCode={detail.get('statusCode')}, "
+                      f"statusMsg={str(detail.get('statusMsg'))[:160]}. Черновик сохранён")
 
     if await _recover_video_page(page):
         return True, None
@@ -709,6 +734,8 @@ def _availability_error(avail: bool | None, message: str | None) -> CommentResul
     permanent = any(text in message.lower() for text in (
         "this video is private", "this video has been removed", "видео удалено",
     ))
+    if "код 10204" in message and avail is False:
+        return CommentResult(False, f"{message}. Черновик сохранён", "region_restricted")
     if avail is False and permanent:
         return CommentResult(False, message, "video_unavailable")
     return CommentResult(False, f"{message}. Черновик сохранён; проверьте доступ к ролику для этого аккаунта и повторите запуск", "page_unavailable")
@@ -906,6 +933,76 @@ async def _read_editor_text(editor: Locator) -> str:
     return await editor.evaluate("el => 'value' in el ? el.value : el.innerText")
 
 
+
+async def _navigate_to_video(page: Page, video_url: str) -> CommentResult | None:
+    """Bounded navigation with main-document HTTP diagnostics; never changes identity or proxy."""
+    observed = {}
+    async def on_document_response(response: Response) -> None:
+        try:
+            request = response.request
+            if request.is_navigation_request() and request.frame == page.main_frame:
+                observed.update(status=response.status, url=response.url,
+                                retry_after=response.headers.get("retry-after"))
+        except (AttributeError, TypeError, ValueError):
+            # Third-party responses are not always attached to a live frame.
+            return
+
+    page.on("response", on_document_response)
+    try:
+        for attempt in range(1, VIDEO_NAV_MAX_ATTEMPTS + 1):
+            observed.clear()
+            started = monotonic()
+            failure = None
+            try:
+                response = await page.goto(
+                    video_url, wait_until="domcontentloaded", timeout=45_000,
+                    referer=f"{TIKTOK}/",
+                )
+                if response and isinstance(response.status, int):
+                    observed.setdefault("status", response.status)
+                    observed.setdefault("url", response.url)
+                    observed.setdefault("retry_after", response.headers.get("retry-after"))
+            except Exception as exc:
+                failure = f"{type(exc).__name__}: {str(exc)[:200]}"
+            status = observed.get("status")
+            elapsed = monotonic() - started
+            final_url = observed.get("url") or (page.url if isinstance(page.url, str) else video_url)
+            if failure is None and not isinstance(status, int):
+                return None
+            if failure is None and status < 400:
+                return None
+
+            diagnostic = (f"попытка {attempt}/{VIDEO_NAV_MAX_ATTEMPTS}; "
+                          f"HTTP {status if isinstance(status, int) else '?'}; "
+                          f"URL {final_url}; {elapsed:.1f} с"
+                          + (f"; {failure}" if failure else ""))
+            log_event("navigation", diagnostic, level="WARNING")
+
+            if status in (404, 410):
+                return CommentResult(False, f"Ролик удалён или недоступен (HTTP {status}); {diagnostic}", "video_unavailable")
+            if status == 401 or isinstance(final_url, str) and "/login" in final_url:
+                return CommentResult(False, f"TikTok требует повторного входа; {diagnostic}", "session_expired")
+            if isinstance(status, int) and 400 <= status < 500 and status != 429:
+                return CommentResult(False, f"Доступ к ролику отклонён (HTTP {status}); {diagnostic}", "access_denied")
+            if attempt == VIDEO_NAV_MAX_ATTEMPTS:
+                return CommentResult(False, f"Навигация не удалась после {attempt} попыток; {diagnostic}. Черновик сохранён", "navigation_failed")
+            # Retry only unknown transport failures, 429 and server failures.
+            delay = min(VIDEO_NAV_BASE_DELAY_S * 2 ** (attempt - 1), VIDEO_NAV_MAX_DELAY_S)
+            retry_after = observed.get("retry_after")
+            if retry_after and status in (429, 500, 502, 503, 504):
+                try:
+                    delay = max(delay, float(retry_after))
+                except (TypeError, ValueError):
+                    try:
+                        date = parsedate_to_datetime(retry_after)
+                        delay = max(delay, (date - datetime.now(timezone.utc)).total_seconds())
+                    except (TypeError, ValueError, OverflowError):
+                        pass
+            await asyncio.sleep(max(0, min(delay, VIDEO_NAV_MAX_DELAY_S)))
+    finally:
+        page.remove_listener("response", on_document_response)
+
+
 async def post_comment_on_video(
     ctx: BrowserContext,
     video_url: str,
@@ -945,14 +1042,9 @@ async def post_comment_on_video(
 
         page.on("response", on_response)
 
-        try:
-            await page.goto(video_url, wait_until="domcontentloaded", timeout=45_000, referer=f"{TIKTOK}/")
-        except Exception as e:
-            return CommentResult(
-                success=False,
-                message=f"Не удалось открыть страницу ролика: {e}",
-                error_code="page_unavailable",
-            )
+        nav_error = await _navigate_to_video(page, video_url)
+        if nav_error:
+            return nav_error
 
         await page.wait_for_timeout(random.uniform(2000, 3500))
         # Проверка до взаимодействия с любыми элементами страницы.
