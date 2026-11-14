@@ -1,0 +1,28 @@
+.account-monitor { margin:.75rem; padding:.85rem .6rem .6rem; border:1px solid #e5e9f0; border-radius:.8rem; background:#fff; flex-shrink:0; font-family:'Onest',system-ui,sans-serif; }
+.monitor-heading { display:flex; align-items:center; justify-content:space-between; gap:.5rem; padding:0 .35rem .65rem; }
+.monitor-heading h2 { font-size:.8rem; font-weight:600; color:#344054; }
+.monitor-total { font-size:.7rem; color:#8b94a3; }
+.monitor-list { display:flex; flex-direction:column; gap:.1rem; max-height:min(18rem,36vh); overflow-y:auto; scrollbar-width:thin; }
+.monitor-account { display:flex; align-items:flex-start; gap:.55rem; width:100%; padding:.55rem .35rem; border-radius:.5rem; text-align:left; min-width:0; transition:background .15s; }
+.monitor-account:hover,.monitor-account:focus-visible { background:#f5f7fb; }
+.monitor-account:focus-visible,.monitor-footer button:focus-visible { outline:2px solid #a5a0e6; outline-offset:1px; }
+.monitor-dot { width:7px; height:7px; border-radius:50%; flex-shrink:0; margin-top:.35rem; background:#d39a28; }
+[data-tone=green] > .monitor-dot { background:#239d74; }
+[data-tone=yellow] > .monitor-dot { background:#d5a03c; }
+[data-tone=red] > .monitor-dot { background:#d76a71; }
+.monitor-account-copy { min-width:0; flex:1; }
+.monitor-username { display:block; font-size:.75rem; font-weight:550; color:#445168; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.monitor-description { display:block; font-size:.65rem; color:#98a0af; margin-top:.1rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.monitor-account[data-tone=red] .monitor-description { color:#b46a70; }
+.monitor-account[data-tone=yellow] .monitor-description { color:#b18c48; }
+.monitor-footer { border-top:1px solid #edf0f5; margin-top:.55rem; padding:.55rem .35rem 0; display:flex; flex-direction:column; align-items:flex-start; gap:.5rem; }
+.monitor-footer button { font-size:.65rem; color:#8793a5; text-align:left; }
+.monitor-footer button:hover { color:#4f46e5; }
+.monitor-expand { color:#626e85!important; font-weight:500; }
+.monitor-empty { padding:.5rem .35rem; font-size:.75rem; color:#8b94a3; line-height:1.6; }
+.monitor-add { padding:.4rem .35rem; color:#4f46e5; font-size:.75rem; }
+.monitor-mobile { display:inline-flex; align-items:center; gap:.4rem; padding:.35rem .65rem; border:1px solid #e4e8f0; background:#f9fafc; border-radius:2rem; font-size:.7rem; font-weight:500; color:#59677e; white-space:nowrap; }
+.monitor-mobile .monitor-dot { margin-top:0; width:6px; height:6px; }
+.monitor-settings-copy { color:#8790a2; font-size:.8rem; line-height:1.6; max-width:65ch; }
+@media(min-width:1024px) { #hdr-session.monitor-mobile { display:none!important; } }
+@media(max-width:1023px) { #side-session.account-monitor { display:none; } }

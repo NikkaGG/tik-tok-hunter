@@ -1,0 +1,696 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <link rel="stylesheet" href="account-manager.css?v=1">
+  <link rel="stylesheet" href="draft-preparation.css?v=1">
+  <link rel="stylesheet" href="account-monitor.css?v=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <title>TikTok Lead Hunter</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Onest:wght@400;500;600;700&display=swap">
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script>
+    // Цвета ink/muted/paper/line/find/queue/sent нужны вкладке «Аккаунт-менеджер».
+    tailwind.config = { theme: { extend: {
+      fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] },
+      colors: {
+        ink: '#1A1D26', muted: '#667085', paper: '#F3F4F7', line: '#E3E5EB',
+        find:  { 50: '#EFF5FF', 100: '#DBE8FE', 500: '#2563EB', 600: '#1D4FD8', 700: '#1E40AF' },
+        queue: { 50: '#FFF7EB', 100: '#FDE9C8', 500: '#D97706', 600: '#B45309', 700: '#92400E' },
+        sent:  { 50: '#F5F1FF', 100: '#E9E0FE', 500: '#7C3AED', 600: '#6D28D9', 700: '#5B21B6' },
+      },
+    } } };
+  </script>
+  <style>
+    body { background: #f4f6fb; }
+    .tab-btn { color: #475569; }
+    .tab-btn:hover { background: #f1f5f9; color: #0f172a; }
+    .tab-btn.active { background: #eef2ff; color: #4338ca; }
+    .tab-btn.active svg { color: #6366f1; }
+    .tab-btn .tab-hint { color: #94a3b8; }
+    .tab-btn.active .tab-hint { color: #818cf8; }
+    .step-num { background: #f1f5f9; color: #64748b; }
+    .tab-btn.active .step-num { background: #4f46e5; color: #fff; }
+    .nav-label { font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: #94a3b8; font-weight: 600; }
+    input:not([type=checkbox]):not([type=radio]), select, textarea {
+      border-color: #e2e8f0; background-color: #fff; transition: border-color .15s, box-shadow .15s;
+    }
+    input:focus, select:focus, textarea:focus {
+      outline: none; border-color: #818cf8; box-shadow: 0 0 0 3px rgb(99 102 241 / .18);
+    }
+    input[type=checkbox] { accent-color: #4f46e5; width: 15px; height: 15px; }
+    thead th { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; font-weight: 600; }
+    .nav-scroll { scrollbar-width: none; }
+    .nav-scroll::-webkit-scrollbar { display: none; }
+    code { background: #f1f5f9; padding: 1px 5px; border-radius: 5px; font-size: .9em; }
+    /* Аккаунт-менеджер: свой стиль, только внутри вкладки.
+       Компоненты лежат в слое, поэтому утилиты Tailwind их перекрывают. */
+    @layer acc {
+      [data-panel="accounts"] .card { background-color: #ffffff; border-radius: 0.75rem; border: 1px solid #E3E5EB; }
+      [data-panel="accounts"] .field { width: 100%; border-radius: 0.5rem; border: 1px solid #E3E5EB; background-color: #ffffff; padding: 0.5rem 0.75rem; font-size: 0.875rem; line-height: 1.25rem; }
+      [data-panel="accounts"] .label { display: block; font-size: 0.875rem; line-height: 1.25rem; font-weight: 500; }
+      [data-panel="accounts"] .hint { font-size: 13px; line-height: 1.375; color: #667085; }
+      [data-panel="accounts"] .btn { display: inline-flex; align-items: center; justify-content: center; gap: 0.375rem; border-radius: 0.5rem; padding: 0.5rem 0.875rem; font-size: 0.875rem; line-height: 1.25rem; font-weight: 500; white-space: nowrap; transition: color 150ms cubic-bezier(0.4, 0, 0.2, 1), background-color 150ms cubic-bezier(0.4, 0, 0.2, 1), border-color 150ms cubic-bezier(0.4, 0, 0.2, 1); }
+      [data-panel="accounts"] .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+      [data-panel="accounts"] .btn-sm { padding: 0.375rem 0.625rem; font-size: 13px; }
+      [data-panel="accounts"] .btn-ghost { border: 1px solid #E3E5EB; background-color: #ffffff; }
+      [data-panel="accounts"] .btn-ghost:hover { background-color: #F3F4F7; }
+      [data-panel="accounts"] .btn-quiet { color: #667085; }
+      [data-panel="accounts"] .btn-quiet:hover { color: #1A1D26; background-color: #F3F4F7; }
+      [data-panel="accounts"] .btn-danger { color: #e11d48; }
+      [data-panel="accounts"] .btn-danger:hover { background-color: #fff1f2; }
+    }
+    /* Перекрывают общие стили полей, чекбоксов и заголовков таблиц выше. */
+    [data-panel="accounts"], #acc-header-actions { font-family: 'Onest', system-ui, sans-serif; color: #1A1D26; }
+    [data-panel="accounts"] :focus-visible { outline: 2px solid #2563EB; outline-offset: 2px; }
+    section[data-panel="accounts"] .field { border-color: #E3E5EB; background-color: #ffffff; transition: box-shadow 150ms cubic-bezier(0.4, 0, 0.2, 1); }
+    section[data-panel="accounts"] .field:focus { outline: 2px solid transparent; outline-offset: 2px; border-color: #2563EB; box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.15); }
+    [data-panel="accounts"] input[type=checkbox] { accent-color: #1A1D26; width: 16px; height: 16px; }
+    [data-panel="accounts"] thead th { font-size: 0.75rem; line-height: 1rem; font-weight: 500; color: #667085; text-transform: none; letter-spacing: normal; }
+  </style>
+  <link rel="stylesheet" href="workflow.css?v=1">
+  <link rel="stylesheet" href="dark-theme.css?v=1">
+</head>
+<body class="text-slate-800 min-h-screen antialiased">
+
+<!-- Меню: слева на широком экране, сверху на узком -->
+<aside class="bg-white border-b lg:border-b-0 lg:border-r border-slate-200 lg:fixed lg:inset-y-0 lg:left-0 lg:w-64 flex flex-col z-20 sticky top-0">
+  <div class="flex items-center justify-between gap-3 px-4 lg:px-5 py-3 lg:py-5">
+    <div class="flex items-center gap-3">
+      <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-fuchsia-500 via-rose-500 to-cyan-400 flex items-center justify-center text-white text-lg shadow-sm">🎯</div>
+      <div class="leading-tight">
+        <div class="font-bold">Lead Hunter</div>
+        <div class="text-xs text-slate-400">для TikTok</div>
+      </div>
+    </div>
+    <button id="hdr-session" title="Состояние всех аккаунтов TikTok" class="lg:hidden hidden items-center gap-2 text-xs font-medium px-3 py-1.5 rounded-full"></button>
+  </div>
+
+  <!-- Пункты сгруппированы по порядку работы: сначала подготовка, потом три шага с лидами -->
+  <nav id="nav" class="nav-scroll flex lg:flex-col gap-1 overflow-x-auto px-3 pb-3 lg:pb-0 text-sm font-medium lg:flex-1 lg:overflow-y-auto">
+    <button class="tab-btn shrink-0 flex items-center gap-3 px-3 py-2 rounded-lg" data-tab="dashboard">
+      <svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M4 4h7v7H4zM13 4h7v4h-7zM13 10h7v10h-7zM4 13h7v7H4z"/></svg>
+      Главная
+    </button>
+
+    <div class="hidden lg:block nav-label px-3 pt-4 pb-1">Работа с лидами</div>
+    <button class="tab-btn shrink-0 flex items-center gap-3 px-3 py-2 rounded-lg" data-tab="search">
+      <span class="step-num w-5 h-5 rounded-md text-xs font-bold flex items-center justify-center shrink-0">1</span>
+      <span class="flex-1 text-left leading-tight">Поиск роликов<span class="tab-hint hidden lg:block text-xs font-normal">хэштеги и ключевые слова</span></span>
+      <span id="badge-search" title="Идёт поиск" class="w-2 h-2 rounded-full bg-sky-500 animate-pulse hidden"></span>
+    </button>
+    <button class="tab-btn shrink-0 flex items-center gap-3 px-3 py-2 rounded-lg" data-tab="videos">
+      <span class="step-num w-5 h-5 rounded-md text-xs font-bold flex items-center justify-center shrink-0">2</span>
+      <span class="flex-1 text-left leading-tight">Отбор роликов<span class="tab-hint hidden lg:block text-xs font-normal">отметить подходящие</span></span>
+      <span id="badge-videos" title="Новых роликов, ещё не отобраны" class="text-xs bg-sky-100 text-sky-700 rounded-full px-1.5 min-w-[1.25rem] text-center hidden"></span>
+    </button>
+    <button class="tab-btn shrink-0 flex items-center gap-3 px-3 py-2 rounded-lg" data-tab="drafts">
+      <span class="step-num w-5 h-5 rounded-md text-xs font-bold flex items-center justify-center shrink-0">3</span>
+      <span class="flex-1 text-left leading-tight">Отправка ответов<span class="tab-hint hidden lg:block text-xs font-normal">очередь черновиков</span></span>
+      <span id="badge-drafts" title="Черновиков ждут отправки" class="text-xs bg-rose-500 text-white rounded-full px-1.5 min-w-[1.25rem] text-center hidden"></span>
+    </button>
+
+    <div class="hidden lg:block nav-label px-3 pt-4 pb-1">Подготовка</div>
+    <button class="tab-btn shrink-0 flex items-center gap-3 px-3 py-2 rounded-lg" data-tab="settings">
+      <svg class="w-5 h-5 text-slate-400 shrink-0" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg>
+      <span class="flex-1 text-left leading-tight">Настройки<span class="tab-hint hidden lg:block text-xs font-normal">поиск, браузеры и прокси</span></span>
+    </button>
+    <button class="tab-btn shrink-0 flex items-center gap-3 px-3 py-2 rounded-lg" data-tab="accounts">
+      <svg class="w-5 h-5 text-slate-400 shrink-0" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.5 3.4-5.5 6.5-5.5s5.7 2 6.5 5.5M16 4.5a3.5 3.5 0 0 1 0 7M18.5 14.8c1.6.8 2.7 2.5 3 5.2"/></svg>
+      <span class="flex-1 text-left leading-tight">Аккаунт-менеджер<span class="tab-hint hidden lg:block text-xs font-normal">с чего отвечаем, лимиты</span></span>
+    </button>
+    <button class="tab-btn shrink-0 flex items-center gap-3 px-3 py-2 rounded-lg" data-tab="templates">
+      <svg class="w-5 h-5 text-slate-400 shrink-0" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5M10 13h6M10 17h6"/></svg>
+      <span class="flex-1 text-left leading-tight">Шаблоны ответов<span class="tab-hint hidden lg:block text-xs font-normal">тексты комментариев</span></span>
+    </button>
+  </nav>
+
+  <!-- Низ меню: журнал и статус сессии (широкий экран) -->
+  <div class="hidden lg:block px-3 pt-2">
+    <button class="tab-btn w-full flex items-center gap-3 px-3 py-1.5 rounded-lg text-xs font-medium" data-tab="logs">
+      <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01"/></svg>
+      Журнал событий
+    </button>
+  </div>
+  <section id="side-session" class="account-monitor" aria-label="Монитор аккаунтов TikTok"><div class="monitor-heading"><h2>TikTok</h2></div><p class="monitor-empty">Загружаем аккаунты…</p></section>
+</aside>
+
+<div class="lg:pl-64">
+  <main class="max-w-6xl mx-auto px-4 lg:px-8 py-6 lg:py-8">
+    <div class="mb-6 flex flex-wrap items-end justify-between gap-3">
+      <div class="min-w-0">
+        <div id="page-step" class="hidden nav-label !text-indigo-600 mb-1"></div>
+        <h1 id="page-title" class="text-2xl font-bold tracking-tight"></h1>
+        <p id="page-sub" class="text-slate-500 mt-1"></p>
+      </div>
+      <div class="flex items-center gap-2.5">
+        <button id="page-next" class="hidden px-4 py-2 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-sm font-medium"></button>
+        <div id="acc-header-actions" class="hidden items-center gap-2.5">
+          <button id="btn-acc-refresh" type="button" title="Обновить аккаунты" aria-label="Обновить аккаунты" class="w-10 h-10 rounded-xl border border-line bg-white hover:bg-paper flex items-center justify-center text-ink shadow-sm transition-colors">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></svg>
+          </button>
+          <button id="btn-acc-add" type="button" class="inline-flex items-center gap-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-4 py-2.5 text-sm shadow-sm transition-colors">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+            Добавить аккаунт
+          </button>
+        </div>
+      </div>
+    </div>
+    <nav class="workflow-path" aria-label="Этапы работы">
+      <button type="button" data-goto="search"><span>1</span> Поиск</button>
+      <button type="button" data-goto="videos"><span>2</span> Отбор</button>
+      <button type="button" id="workflow-prepare"><span>3</span> Подготовка</button>
+      <button type="button" data-goto="drafts"><span>4</span> Отправка</button>
+    </nav>
+
+    <!-- Дашборд -->
+    <section data-panel="dashboard" class="space-y-6">
+
+      <!-- Быстрый старт -->
+      <div id="onboarding" class="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-5">
+        <div class="flex flex-wrap items-start justify-between gap-3 mb-3">
+          <div>
+            <h2 class="font-semibold text-lg">🚀 Быстрый старт</h2>
+            <p id="onb-subtitle" class="text-sm text-slate-500">Четыре шага до первого обработанного лида</p>
+          </div>
+          <div class="flex items-center gap-4">
+            <span id="onb-progress" class="text-sm font-medium text-slate-600"></span>
+            <button id="onb-hide" class="text-sm text-slate-400 hover:text-slate-700">Скрыть</button>
+          </div>
+        </div>
+        <div class="h-1.5 bg-slate-100 rounded-full mb-4 overflow-hidden">
+          <div id="onb-bar" class="h-full bg-gradient-to-r from-indigo-500 to-emerald-500 transition-all duration-500" style="width:0"></div>
+        </div>
+        <ol id="onb-steps" class="grid md:grid-cols-2 xl:grid-cols-4 gap-3 *:min-w-0"></ol>
+      </div>
+      <button id="onb-show" class="hidden text-sm text-indigo-600 hover:underline">🚀 Показать «Быстрый старт»</button>
+
+      <div id="stat-cards" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3"></div>
+
+      <div class="grid lg:grid-cols-3 gap-6 *:min-w-0">
+        <!-- Сессия: цвет карточки зависит от статуса -->
+        <div id="session-card" class="rounded-2xl border-2 border-slate-200 bg-white p-5 transition-colors">
+          <div class="flex items-center justify-between gap-2 mb-3">
+            <h2 class="font-semibold">Сессия TikTok</h2>
+            <span id="session-pill"></span>
+          </div>
+          <div id="session-info" class="text-sm space-y-1 mb-4"></div>
+          <div class="flex flex-wrap gap-2">
+            <button id="btn-login" class="px-3 py-1.5 rounded-lg bg-slate-900 text-white text-sm">Подключить TikTok</button>
+            <button id="btn-check" class="px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-sm">Проверить</button>
+          </div>
+        </div>
+
+        <!-- Быстрый поиск -->
+        <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-5 lg:col-span-2">
+          <div class="flex items-center justify-between mb-3">
+            <h2 class="font-semibold">⚡ Быстрый поиск</h2>
+            <button data-goto="search" class="text-sm text-indigo-600 hover:underline">История поиска →</button>
+          </div>
+          <form id="quick-search" class="flex flex-wrap items-center gap-2">
+            <input name="q" required autocomplete="off" placeholder="#кофейня, кофе с собой москва"
+                   class="flex-1 min-w-[14rem] border rounded-lg px-3 py-2">
+            <select name="template" title="Шаблон: для найденных роликов сразу появятся черновики" class="border rounded-lg px-2 py-2 text-sm max-w-[13rem]">
+              <option value="">Только найти</option>
+            </select>
+            <select name="limit" title="Роликов на запрос" class="border rounded-lg px-2 py-2 text-sm">
+              <option value="10">10 роликов</option><option value="30" selected>30 роликов</option><option value="50">50 роликов</option>
+            </select>
+            <label class="flex items-center gap-1.5 text-sm text-slate-600" title="Если TikTok покажет капчу, её можно пройти вручную">
+              <input name="visible" type="checkbox"> окно
+            </label>
+            <button id="qs-btn" class="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium">Найти</button>
+          </form>
+          <p class="text-xs text-slate-500 mt-2">Несколько запросов указывайте через запятую. Выберите шаблон, и для найденных роликов сразу появятся черновики — шаг «Отбор» можно пропустить и сразу перейти к отправке.</p>
+          <div id="quick-status" class="mt-3 text-sm"></div>
+        </div>
+      </div>
+
+      <div class="grid md:grid-cols-2 gap-6 *:min-w-0">
+        <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-5">
+          <div class="flex items-center justify-between mb-3">
+            <h2 class="font-semibold">Аккаунты</h2>
+            <button data-goto="accounts" class="text-sm text-indigo-600 hover:underline">Управление →</button>
+          </div>
+          <div id="dash-acc-summary" class="flex flex-wrap gap-2 mb-3"></div>
+          <div id="dash-accounts" class="text-sm"></div>
+        </div>
+        <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-5">
+          <div class="flex items-center justify-between mb-3">
+            <h2 class="font-semibold">Последние события</h2>
+            <button data-goto="logs" class="text-sm text-indigo-600 hover:underline">Весь журнал →</button>
+          </div>
+          <div id="dash-logs" class="text-sm font-mono space-y-1 break-words"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Аккаунт-менеджер -->
+    <section data-panel="accounts" class="space-y-4 hidden">
+      <div id="acc-overview" class="acc-overview" aria-label="Сводка по аккаунтам"></div>
+      <div class="acc-workspace">
+        <div class="acc-toolbar">
+          <label class="acc-search-wrap"><span class="sr-only">Найти аккаунт</span><svg width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m16 16 4 4"/></svg><input id="acc-search" type="search" placeholder="Найти аккаунт…" aria-label="Найти аккаунт"></label>
+          <select id="acc-session-filter" aria-label="Состояние сессии" class="field"><option value="">Все сессии</option><option value="active">Активные</option><option value="attention">Требуют проверки</option><option value="missing">Нет подключения</option><option value="checking">Проверяются</option></select>
+          <button id="btn-acc-filters" type="button" class="btn btn-ghost" aria-expanded="false" aria-controls="acc-extra-filters">Фильтры<span id="acc-filter-count"></span></button>
+          <button id="btn-acc-check-all" type="button" class="btn btn-ghost acc-check-all">Проверить все сессии</button>
+        </div>
+        <div id="acc-extra-filters" class="hidden acc-filters">
+          <div id="acc-state-tabs" class="flex flex-wrap gap-2" role="tablist" aria-label="Рабочее состояние"></div>
+          <div class="flex flex-wrap gap-4 items-center">
+            <label class="acc-filter-label">Группа<select id="acc-group" class="field"><option value="">Все группы</option></select></label>
+            <label class="acc-filter-label">Прокси<select id="acc-proxy-filter" class="field"><option value="">Все</option><option value="ok">Доступен</option><option value="error">Ошибка</option><option value="none">Без прокси</option></select></label>
+            <label class="acc-filter-label">Дневной лимит<select id="acc-limit-filter" class="field"><option value="">Любой</option><option value="available">Есть доступные ответы</option><option value="exhausted">Лимит исчерпан</option></select></label>
+            <label class="flex items-center gap-2 text-sm"><input id="acc-only-session" type="checkbox">Аккаунт поиска</label>
+            <button id="btn-acc-reset-filters" type="button" class="btn btn-quiet btn-sm">Сбросить</button>
+          </div>
+        </div>
+        <div id="acc-bulk-bar" class="hidden acc-bulk-bar">
+          <span class="text-sm font-medium">Выбрано: <span id="acc-selected-count">0</span></span>
+          <button type="button" data-acc-bulk="check" class="btn btn-sm btn-ghost">Проверить сессии</button>
+          <select id="acc-bulk-action" aria-label="Изменить выбранные аккаунты" class="field"><option value="">Изменить…</option><option value="active">Активировать</option><option value="paused">Поставить на паузу</option><option value="limit">Дневной лимит</option><option value="group">Группу</option><option value="delete">Удалить</option></select>
+          <button id="acc-clear-selection" type="button" class="btn btn-sm btn-quiet">Снять выбор</button>
+        </div>
+        <div class="acc-table-scroll"><table class="acc-table"><thead><tr>
+          <th class="acc-checkbox-cell"><input id="acc-select-all" type="checkbox" aria-label="Выбрать все аккаунты на странице"></th>
+          <th>Аккаунт</th><th>Сессия TikTok</th><th>Наборы текстов</th><th>Ответы сегодня</th><th class="acc-actions-heading"><span class="sr-only">Действия</span></th>
+        </tr></thead><tbody id="accounts-body"></tbody></table></div>
+        <div class="acc-table-footer"><div id="acc-page-info">Показано 0 из 0</div><div class="flex items-center gap-3"><select id="acc-page-size" aria-label="Строк на странице" class="field"><option value="8" selected>8 строк</option><option value="15">15 строк</option><option value="30">30 строк</option><option value="50">50 строк</option></select><div id="acc-pagination" class="flex gap-1"></div></div></div>
+      </div>
+
+      <!-- Плавающее меню действий «три точки» -->
+      <div id="acc-row-menu" class="hidden fixed w-56 bg-white rounded-2xl border border-line shadow-xl py-1.5 z-50 text-sm">
+        <button type="button" data-acc-menu-act="edit" class="w-full px-3.5 py-2.5 text-left flex items-center gap-2.5 hover:bg-paper text-ink font-medium transition-colors">
+          <svg class="w-4 h-4 text-muted shrink-0" fill="none" stroke="currentColor" stroke-width="1.9" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c.26.604.852.997 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          <span>Настроить аккаунт</span>
+        </button>
+        <button type="button" data-acc-menu-act="toggle-pause" class="w-full px-3.5 py-2.5 text-left flex items-center gap-2.5 hover:bg-paper text-ink font-medium transition-colors">
+          <svg class="w-4 h-4 text-muted shrink-0" fill="none" stroke="currentColor" stroke-width="1.9" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M10 9v6M14 9v6" stroke-linecap="round"/></svg>
+          <span id="acc-menu-pause-label">Поставить на паузу</span>
+        </button>
+        <button type="button" data-acc-menu-act="check-proxy" class="w-full px-3.5 py-2.5 text-left flex items-center gap-2.5 hover:bg-paper text-ink font-medium transition-colors">
+          <svg class="w-4 h-4 text-muted shrink-0" fill="none" stroke="currentColor" stroke-width="1.9" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3.6 9h16.8M3.6 15h16.8M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18"/></svg>
+          <span>Проверить прокси</span>
+        </button>
+        <button type="button" data-acc-menu-act="open-profile" class="w-full px-3.5 py-2.5 text-left flex items-center gap-2.5 hover:bg-paper text-ink font-medium transition-colors">
+          <svg class="w-4 h-4 text-muted shrink-0" fill="none" stroke="currentColor" stroke-width="1.9" viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+          <span>Открыть профиль TikTok</span>
+        </button>
+        <div class="my-1 border-t border-line"></div>
+        <button type="button" data-acc-menu-act="delete" class="w-full px-3.5 py-2.5 text-left flex items-center gap-2.5 hover:bg-rose-50 text-rose-600 font-medium transition-colors">
+          <svg class="w-4 h-4 text-rose-600 shrink-0" fill="none" stroke="currentColor" stroke-width="1.9" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+          <span>Удалить аккаунт</span>
+        </button>
+      </div>
+
+      <!-- Модальное окно добавления / настройки аккаунта -->
+      <div id="modal-account" role="dialog" aria-modal="true" aria-labelledby="acc-modal-title" class="fixed inset-0 bg-ink/40 z-50 hidden flex items-center justify-center p-4">
+        <div class="card max-w-lg w-full p-6 space-y-4 shadow-2xl max-h-[92vh] overflow-y-auto">
+          <div class="flex items-start justify-between gap-2">
+            <div>
+              <h3 id="acc-modal-title" class="text-lg font-bold">Добавить аккаунт</h3>
+              <p class="hint mt-0.5">Укажите категорию, прокси, дневной лимит и заметку для удобного управления</p>
+            </div>
+            <button id="btn-close-acc-modal" type="button" aria-label="Закрыть" class="btn btn-quiet btn-sm">✕</button>
+          </div>
+
+          <form id="account-modal-form" class="space-y-4 text-sm">
+            <input type="hidden" name="id">
+
+            <div class="grid sm:grid-cols-2 gap-3">
+              <label class="label">Ник в TikTok
+                <input name="username" required placeholder="@home.finds_kz" class="field mt-1.5 font-normal">
+              </label>
+              <label class="label">Группа / категория
+                <input name="display_name" list="acc-group-datalist" placeholder="Например: Товары для дома" class="field mt-1.5 font-normal">
+                <datalist id="acc-group-datalist">
+                  <option value="Товары для дома"></option>
+                  <option value="Техника"></option>
+                  <option value="Интерьер"></option>
+                  <option value="Косметика"></option>
+                  <option value="Детские товары"></option>
+                  <option value="Одежда и стиль"></option>
+                  <option value="Гаджеты"></option>
+                  <option value="Кафе и рестораны"></option>
+                </datalist>
+              </label>
+            </div>
+
+            <div class="grid sm:grid-cols-2 gap-3">
+              <label class="label">Состояние
+                <select name="status" class="field mt-1.5 font-normal">
+                  <option value="active">🟣 Готов</option>
+                  <option value="working">🔵 В работе</option>
+                  <option value="paused">⚪ Отдыхает (пауза)</option>
+                  <option value="warning">🟠 Требует внимания</option>
+                  <option value="banned">🔴 Заблокирован</option>
+                </select>
+              </label>
+              <label class="label">Дневной лимит ответов
+                <input name="daily_reply_limit" type="number" min="0" max="500" value="20" class="field mt-1.5 font-normal tabular-nums">
+              </label>
+            </div>
+
+            <div class="rounded-xl border border-line bg-paper/40 p-3.5 space-y-3">
+              <div class="font-medium text-ink">Настройки прокси</div>
+              <label class="label text-xs text-muted">Адрес прокси (ip:порт или ip:порт:логин:пароль)
+                <input name="proxy" autocomplete="off" placeholder="185.92.43.18:8001" class="field mt-1 font-mono font-normal bg-white">
+              </label>
+              <div class="grid sm:grid-cols-2 gap-3">
+                <label class="label text-xs text-muted">Гео / подпись прокси
+                  <input name="proxy_label" placeholder="Казахстан · стабильно" class="field mt-1 font-normal bg-white">
+                </label>
+                <label class="label text-xs text-muted">Статус прокси
+                  <select name="proxy_status" class="field mt-1 font-normal bg-white">
+                    <option value="ok">🟣 Стабильно / активно</option>
+                    <option value="error">🔴 Недоступен / ошибка</option>
+                    <option value="none">⚪ Без прокси</option>
+                  </select>
+                </label>
+              </div>
+            </div>
+
+            <label class="label">Заметка
+              <input name="notes" placeholder="Например: Работает по новому списку запросов" class="field mt-1.5 font-normal">
+            </label>
+
+            <div class="flex justify-end gap-2 pt-3 border-t border-line">
+              <button type="button" id="btn-cancel-acc-modal" class="btn btn-ghost">Отмена</button>
+              <button type="submit" class="btn bg-indigo-600 hover:bg-indigo-700 text-white">Сохранить</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </section>
+
+    <!-- Поиск -->
+    <section data-panel="search" class="space-y-6 hidden">
+      <form id="search-form" class="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-5 space-y-4">
+        <div><h2 class="workflow-heading">Найдите подходящие ролики</h2><p class="workflow-copy">Укажите запросы и аккаунт. Результаты появятся в разделе «Отбор роликов».</p></div>
+        <label class="text-sm font-medium text-slate-600 block">Запросы: по одному на строку, <code>#хэштег</code> или ключевые слова
+          <textarea name="queries" rows="4" required class="mt-1 w-full border rounded-lg px-3 py-2 font-mono font-normal" placeholder="#кофейня&#10;кофе с собой москва"></textarea>
+        </label>
+        <div class="flex flex-wrap items-end gap-4">
+          <label class="text-sm font-medium text-slate-600">Роликов на запрос<input name="limit" type="number" min="1" max="200" value="30" class="mt-1 block w-32 border rounded-lg px-3 py-2 font-normal"></label>
+          <label class="text-sm font-medium text-slate-600" title="Если выбрать шаблон, для найденных роликов сразу появятся черновики">Что сделать с найденными
+            <select name="template" class="mt-1 block border rounded-lg px-3 py-2 font-normal max-w-[16rem]"><option value="">Только найти</option></select>
+          </label>
+          <label class="text-sm flex items-center gap-2 pb-2.5"><input name="visible" type="checkbox"> Видимое окно (если TikTok покажет капчу, её можно пройти вручную)</label>
+          <button class="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium">Запустить поиск</button>
+        </div>
+        <p class="workflow-copy">При выборе всех аккаунтов запросы распределяются между ними: один запрос обрабатывает один аккаунт.</p>
+      </form>
+      <h2 class="font-semibold -mb-3">История задач <span class="font-normal text-slate-500 text-sm">— поиск, автокомментарии и проверки подключения</span></h2>
+      <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead class="bg-slate-50 text-left text-slate-500">
+            <tr><th class="p-3">#</th><th class="p-3">Тип</th><th class="p-3">Параметры</th><th class="p-3">Статус</th><th class="p-3">Итог</th><th class="p-3">Создана</th><th class="p-3"></th></tr>
+          </thead>
+          <tbody id="tasks-body"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Ролики -->
+    <section data-panel="videos" class="space-y-4 hidden">
+      <!-- Как отбирать: два шага -->
+      <div class="grid md:grid-cols-2 gap-3 text-sm *:min-w-0">
+        <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-4 space-y-3">
+          <div class="flex items-center gap-2 font-semibold"><span class="step-num w-5 h-5 rounded-md text-xs font-bold flex items-center justify-center">а</span> Отметьте ролики</div>
+          <p class="text-slate-500">Кнопками ✓ / ✗ в строке или галочками слева — сразу для нескольких.</p>
+          <div class="flex flex-wrap gap-2">
+            <button id="v-select-everything" type="button" class="px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-700">Выбрать все по фильтру</button>
+            <button id="btn-bulk-rel" class="px-3 py-1.5 rounded-lg border border-emerald-300 bg-white text-emerald-700 hover:bg-emerald-50">✓ Отмеченные подходят</button>
+            <button id="btn-bulk-irr" class="px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-600 hover:bg-slate-50">✗ Отмеченные не подходят</button>
+            <button id="btn-bulk-del" class="px-3 py-1.5 rounded-lg border border-rose-300 bg-white text-rose-600 hover:bg-rose-50">🗑 Удалить отмеченные</button>
+          </div>
+        </div>
+        <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-4 space-y-3">
+          <div class="flex items-center gap-2 font-semibold"><span class="step-num w-5 h-5 rounded-md text-xs font-bold flex items-center justify-center">б</span> Создайте черновики ответов</div>
+          <p class="text-slate-500">Отметьте нужные ролики или используйте все «Подходят». В следующем окне выберите тексты и аккаунты, затем просмотрите готовые комментарии.</p>
+          <div class="flex flex-wrap gap-2">
+            <select id="v-template" title="Шаблон для черновиков" class="border rounded-lg px-3 py-1.5 max-w-[14rem]"></select>
+            <button id="btn-generate" class="px-4 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-medium">Создать черновики</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex flex-wrap gap-3 items-end text-sm">
+        <label class="font-medium text-slate-600">Показать<select id="v-status" class="mt-1 block border rounded-lg px-3 py-2 font-normal">
+          <option value="">Все найденные</option><option value="new">Новые (ждут отбора)</option><option value="relevant">Подходят</option><option value="irrelevant">Не подходят</option><option value="replied">Отвечено</option>
+        </select></label>
+        <label class="font-medium text-slate-600">Запрос<select id="v-query" class="mt-1 block border rounded-lg px-3 py-2 font-normal"><option value="">Все</option></select></label>
+        <label class="font-medium text-slate-600">Поиск<input id="v-q" placeholder="автор или текст" class="mt-1 block border rounded-lg px-3 py-2 font-normal"></label>
+        <span class="flex-1"></span>
+        <div class="flex items-center gap-2">
+          <button id="v-export" title="Скачать ролики с текущими фильтрами и ответами" class="px-3 py-2 rounded-lg border border-slate-300 bg-white hover:bg-slate-50">⬇ CSV</button>
+          <span id="v-total" class="text-slate-500"></span>
+          <button id="v-prev" class="px-2.5 py-2 rounded-lg border border-slate-300 bg-white disabled:opacity-40">←</button>
+          <button id="v-next" class="px-2.5 py-2 rounded-lg border border-slate-300 bg-white disabled:opacity-40">→</button>
+        </div>
+      </div>
+      <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead class="bg-slate-50 text-left text-slate-500">
+            <tr><th class="p-3"><input type="checkbox" id="v-all"></th><th class="p-3">Автор</th><th class="p-3">Описание</th><th class="p-3">Просмотры</th><th class="p-3">Запрос</th><th class="p-3">Статус</th><th class="p-3 w-56"></th></tr>
+          </thead>
+          <tbody id="videos-body"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Шаблоны -->
+    <section data-panel="templates" class="space-y-6 hidden">
+      <form id="template-form" class="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-5 space-y-4">
+        <input type="hidden" name="id">
+        <label class="text-sm font-medium text-slate-600 block">Название<input name="name" required placeholder="Например: «Приветствие»" class="mt-1 w-full border rounded-lg px-3 py-2 font-normal"></label>
+        <label class="text-sm font-medium text-slate-600 block">Текст: варианты в <code>{вариант1|вариант2}</code>, ник автора <code>[author]</code>, запрос <code>[query]</code>
+          <textarea name="body" rows="4" required class="mt-1 w-full border rounded-lg px-3 py-2 font-mono font-normal" placeholder="{Привет|Добрый день}, [author]! {Классный|Интересный} ролик 🙌"></textarea>
+        </label>
+        <div class="flex flex-wrap gap-2">
+          <button class="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium">Сохранить</button>
+          <button type="button" id="btn-preview" class="px-4 py-2 rounded-lg border border-slate-300 bg-white text-sm hover:bg-slate-50">Предпросмотр</button>
+          <button type="button" id="btn-tpl-reset" class="px-3 py-2 rounded-lg text-sm text-slate-500 hover:text-slate-800">Очистить</button>
+        </div>
+        <div id="preview-box" class="hidden text-sm bg-indigo-50/60 border border-indigo-100 rounded-lg p-3 space-y-1"></div>
+      </form>
+      <div id="templates-list" class="grid md:grid-cols-2 gap-3"></div>
+    </section>
+
+    <!-- Очередь ответов -->
+    <section data-panel="drafts" class="space-y-4 hidden">
+      <div id="d-toolbar" class="space-y-4 text-sm">
+        <!-- Два способа отправить всю очередь -->
+        <div class="grid md:grid-cols-2 gap-3 *:min-w-0">
+          <div class="bg-white rounded-2xl border-2 border-indigo-200 p-4 flex flex-col gap-2">
+            <div class="flex items-center gap-2">
+              <h3 class="font-semibold">▶ Вручную, по одному</h3>
+              <span class="text-xs font-semibold bg-indigo-600 text-white rounded-full px-2 py-0.5">Безопаснее</span>
+            </div>
+            <p class="text-slate-500 flex-1">Ролик открывается, текст уже скопирован: вставьте комментарий в TikTok и нажмите <kbd class="px-1 rounded border bg-white font-mono text-xs">Enter</kbd> — откроется следующий.</p>
+            <button id="btn-conveyor" class="self-start px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-medium shadow-sm">▶ Запустить конвейер</button>
+          </div>
+          <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-4 flex flex-col gap-2">
+            <h3 class="font-semibold">⚡ Автоматически, ботом</h3>
+            <p class="text-slate-500 flex-1">Бот сам опубликует черновики по очереди со случайной паузой между комментариями. Можно остановить в любой момент.</p>
+            <button id="btn-open-ac-modal" class="self-start px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-medium shadow-sm">⚡ Настроить автокомментирование</button>
+          </div>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-3">
+          <label class="font-medium text-slate-600">Показать <select id="d-status" class="ml-1 border rounded-lg px-3 py-2 font-normal">
+            <option value="draft">Ждут отправки</option><option value="sent">Отправленные</option><option value="review">Требует проверки</option><option value="skipped">Пропущенные</option>
+          </select></label>
+          <label class="inline-flex items-center gap-1.5 text-slate-600 cursor-pointer select-none">
+            <input type="checkbox" id="d-all"> Выбрать все
+          </label>
+          <button id="btn-d-del-selected" class="px-3 py-1.5 rounded-lg border border-rose-300 bg-white text-rose-600 hover:bg-rose-50">🗑 Удалить выбранные</button>
+          <button id="btn-d-clear" class="px-3 py-1.5 rounded-lg border border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100">Очистить список</button>
+          <div class="flex-1"></div>
+          <div class="flex flex-wrap items-center gap-2" title="Отправленные ответы за период">
+            <span class="text-slate-500">Отчёт об отправленных:</span>
+            <input id="exp-from" type="date" class="border rounded-lg px-2 py-1.5">
+            <span class="text-slate-400">—</span>
+            <input id="exp-to" type="date" class="border rounded-lg px-2 py-1.5">
+            <button id="btn-export-replies" class="px-3 py-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-50">⬇ CSV</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Баннер активной задачи автокомментирования -->
+      <div id="ac-active-banner" class="hidden rounded-xl border border-emerald-300 bg-emerald-50/90 p-4 flex flex-wrap items-center justify-between gap-3 text-sm">
+        <div class="flex items-center gap-3">
+          <span class="w-3 h-3 rounded-full bg-emerald-500 animate-pulse"></span>
+          <div>
+            <span class="font-semibold text-emerald-950">Бот отправляет комментарии:</span>
+            <span id="ac-active-status" class="text-emerald-800 ml-1">Подготовка...</span>
+          </div>
+        </div>
+        <button id="btn-cancel-ac-task" class="px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold shadow-sm">✕ Остановить автокомментирование</button>
+      </div>
+
+      <p id="d-hint" class="text-sm text-slate-500">Или по одному черновику прямо в списке: «Открыть и скопировать» → опубликуйте в TikTok → «Отправлено». Текст и аккаунт можно поправить перед отправкой.</p>
+      <div id="drafts-list" class="space-y-3"></div>
+
+      <!-- Модальное окно автокомментирования -->
+      <div id="modal-autocomment" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-xl max-w-lg w-full p-6 space-y-4">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2.5">
+              <div class="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-600 flex items-center justify-center text-lg font-bold">⚡</div>
+              <div>
+                <h3 class="text-lg font-bold text-slate-900">Автокомментирование очереди</h3>
+                <p class="text-xs text-slate-500">Автоматическая публикация ответов через браузер</p>
+              </div>
+            </div>
+            <button id="btn-close-ac-modal" class="text-slate-400 hover:text-slate-600 text-xl font-bold p-1 leading-none">&times;</button>
+          </div>
+          <form id="ac-form" class="space-y-4 text-sm">
+            <div id="ac-empty-alert" class="hidden rounded-xl bg-amber-50 border border-amber-200 text-amber-900 p-3 text-xs leading-relaxed">
+              <b>В очереди пока нет черновиков.</b><br>
+              Подготовьте их на этапе «Подготовка» или выберите ниже «Все найденные ролики».
+            </div>
+
+            <div class="bg-slate-50 border rounded-xl p-3.5 space-y-2">
+              <label class="block font-medium text-slate-700">Сколько черновиков опубликовать?</label>
+              <div class="space-y-2">
+                <label class="flex items-center gap-2 cursor-pointer">
+                  <input type="radio" name="ac_scope" value="all" checked>
+                  <span>Все готовые черновики в очереди (<b id="ac-drafts-count">0</b>)</span>
+                </label>
+                <label class="flex items-start gap-2 cursor-pointer"><input type="radio" name="ac_scope" value="all_videos"><span>Все найденные ролики<br><small class="text-slate-500">Недостающие черновики создадутся из наборов, назначенных аккаунтам.</small></span></label>
+                <label class="flex items-center gap-2 cursor-pointer">
+                  <input type="radio" name="ac_scope" value="limit">
+                  <span>Опубликовать первые</span>
+                  <input id="ac-max-count" type="number" min="1" max="200" value="10" class="w-20 border rounded-lg px-2 py-1 text-center font-normal">
+                  <span>шт.</span>
+                </label>
+              </div>
+              <p id="ac-scope-note" class="hidden text-xs text-amber-700 leading-relaxed" role="status"></p>
+            </div>
+
+            <div>
+              <label class="block font-medium text-slate-700 mb-1">Аккаунт для ответов</label>
+              <select id="ac-account" class="w-full border rounded-lg px-3 py-2 text-sm font-normal">
+                <option value="">Все назначенные аккаунты</option>
+              </select>
+              <p class="text-xs text-slate-500 mt-1">Все назначенные аккаунты работают параллельно. Если выбрать один аккаунт, ему также назначатся черновики без аккаунта.</p>
+            </div>
+
+            <div>
+              <label class="block font-medium text-slate-700 mb-1">Интервал между комментариями</label>
+              <div class="flex items-center gap-2">
+                <span>от</span>
+                <input id="ac-delay-min" type="number" min="5" max="300" value="20" class="w-20 border rounded-lg px-2 py-1.5 text-center font-normal">
+                <span>до</span>
+                <input id="ac-delay-max" type="number" min="5" max="600" value="45" class="w-20 border rounded-lg px-2 py-1.5 text-center font-normal">
+                <span class="text-slate-500">сек (случайный)</span>
+              </div>
+            <p class="text-xs text-slate-500 mt-1">Перед каждой следующей отправкой программа выдержит случайную паузу в этом диапазоне.</p>
+            </div>
+
+            <div class="pt-1">
+              <label class="flex items-start gap-2.5 cursor-pointer rounded-xl border border-slate-200 p-3 hover:bg-slate-50">
+                <input id="ac-visible" type="checkbox" class="mt-0.5" checked>
+                <span class="text-sm">
+                  <b>Видимое окно браузера</b>
+                  <span class="block text-xs text-slate-500 mt-0.5">Рекомендуется: вы увидите ввод комментария ботом, а в случае капчи сможете решить её вручную.</span>
+                </span>
+              </label>
+            </div>
+
+            <div class="flex justify-end gap-2 pt-3 border-t">
+              <button type="button" id="btn-cancel-ac-modal" class="px-4 py-2 rounded-lg border border-slate-300 hover:bg-slate-50 text-slate-700 font-medium">Отмена</button>
+              <button type="submit" id="ac-submit-btn" class="px-5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-medium flex items-center gap-2 shadow-sm">
+                <span>▶</span> Запустить автокомментарии
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- Конвейер: один черновик на экране, управление с клавиатуры -->
+      <div id="conveyor" class="hidden max-w-3xl mx-auto space-y-4">
+        <div class="flex items-center gap-3">
+          <button id="cv-exit" class="text-sm text-slate-500 hover:text-slate-800">← Выйти (Esc)</button>
+          <div class="flex-1 h-2 bg-slate-200 rounded-full overflow-hidden"><div id="cv-bar" class="h-full bg-gradient-to-r from-indigo-500 to-emerald-500 transition-all"></div></div>
+          <span id="cv-progress" class="text-sm font-medium tabular-nums text-slate-600"></span>
+        </div>
+        <div id="cv-card"></div>
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs text-slate-500 text-center">
+          <div><kbd class="px-1.5 py-0.5 rounded border bg-white font-mono">O</kbd> открыть и скопировать</div>
+          <div><kbd class="px-1.5 py-0.5 rounded border bg-white font-mono">Enter</kbd> отправлено → следующий</div>
+          <div><kbd class="px-1.5 py-0.5 rounded border bg-white font-mono">S</kbd> пропустить → следующий</div>
+          <div><kbd class="px-1.5 py-0.5 rounded border bg-white font-mono">E</kbd> править текст</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Логи -->
+    <section data-panel="logs" class="space-y-4 hidden">
+      <div class="flex gap-3 text-sm">
+        <select id="l-level" class="border rounded-lg px-3 py-2"><option value="">Все уровни</option><option>INFO</option><option>WARNING</option><option>ERROR</option></select>
+        <select id="l-source" class="border rounded-lg px-3 py-2"><option value="">Все источники</option><option>system</option><option>tasks</option><option>search</option><option>comments</option><option>session</option><option>settings</option><option>accounts</option><option>videos</option><option>drafts</option></select>
+      </div>
+      <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-x-auto">
+        <table class="w-full text-sm font-mono"><tbody id="logs-body"></tbody></table>
+      </div>
+    </section>
+
+    <!-- Настройки -->
+    <section data-panel="settings" class="space-y-6 hidden">
+
+      <!-- Прокси -->
+      <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-5 space-y-4">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 class="font-semibold text-lg">Прокси</h2>
+            <p class="text-sm text-slate-500">Необязателен. Через него работают поиск, окно входа и проверка сессии. Если с прокси поиск пустой, отключите его: TikTok часто не отдаёт выдачу, когда прокси в другой стране, чем ваш аккаунт.</p>
+          </div>
+          <span id="px-pill"></span>
+        </div>
+        <form id="proxy-form" class="flex flex-wrap items-end gap-3">
+          <label class="text-sm font-medium text-slate-600">Тип
+            <select name="scheme" class="mt-1 block border rounded-lg px-3 py-2 font-normal">
+              <option value="http">HTTP / HTTPS</option><option value="socks5">SOCKS5</option>
+            </select>
+          </label>
+          <label class="text-sm font-medium text-slate-600 flex-1 min-w-[16rem]">Прокси
+            <input name="proxy" autocomplete="off" placeholder="1.2.3.4:8080:логин:пароль" class="mt-1 w-full border rounded-lg px-3 py-2 font-mono font-normal">
+          </label>
+          <button class="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium">Сохранить</button>
+          <button type="button" id="btn-proxy-test" class="px-4 py-2 rounded-lg border border-slate-300 bg-white text-sm hover:bg-slate-50">Проверить</button>
+          <button type="button" id="btn-proxy-clear" class="px-3 py-2 rounded-lg text-sm text-rose-600 hover:bg-rose-50">Отключить</button>
+        </form>
+        <div id="px-status" class="text-sm"></div>
+        <label class="flex items-start gap-3 rounded-xl border border-slate-200 p-3 cursor-pointer hover:bg-slate-50">
+          <input id="use-chrome" type="checkbox" class="mt-0.5">
+          <span class="text-sm">
+            <b>Использовать установленный Google Chrome</b> вместо встроенного браузера
+            <span class="block text-slate-500">Включите, если проверка пишет, что прокси рабочий, но браузер к нему не подключается: антивирус часто блокирует встроенный браузер, а Chrome пропускает. Нужен установленный Google Chrome.</span>
+          </span>
+        </label>
+        <div class="text-sm text-slate-500 space-y-1">
+          <p>Подходят форматы <code>ip:порт</code>, <code>ip:порт:логин:пароль</code>, <code>логин:пароль@ip:порт</code> и <code>http://…</code> / <code>socks5://…</code>.</p>
+          <p>SOCKS5 с логином и паролем Chromium не поддерживает. Берите HTTP-вариант этого же прокси или SOCKS5 с доступом по IP.</p>
+          <p>Ролики из очереди ответов открываются в вашем обычном браузере, поэтому этот прокси на них не действует.</p>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<div id="toast" class="fixed bottom-4 right-4 hidden px-4 py-2 rounded-lg shadow-lg text-sm text-white z-50"></div>
+<script src="app.js?v=12"></script>
+<script src="multiaccount.js?v=5"></script>
+<script src="draft-preparation.js?v=2"></script>
+<script src="account-manager.js?v=1"></script>
+<script src="account-auth.js?v=2"></script>
+<script src="account-monitor.js?v=1"></script>
+</body>
+</html>

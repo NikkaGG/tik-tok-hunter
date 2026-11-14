@@ -1,0 +1,24 @@
+:root { color-scheme: light; --work-ink: #203532; --work-muted: #5a6e69; --work-line: #d9e4df; --work-accent: #176b5b; }
+body { background: #f2f6f3; color: var(--work-ink); }
+body ::selection { background: #b5dfd0; color: #153e35; }
+aside { background: #e6efe9 !important; border-color: #cfddd5 !important; }
+.tab-btn { color: #47615a; }
+.tab-btn:hover { background: #dbeae1; color: #163e34; }
+.tab-btn.active { background: #cce3d7; color: #145343; }
+.tab-btn.active svg { color: #176b5b; }
+.tab-btn.active .step-num { background: #176b5b; }
+.tab-btn.active .tab-hint { color: #426b5e; }
+.nav-label { color: #4d665c; }
+aside .tab-hint, aside .text-slate-400 { color: #557167; }
+.workflow-path { display: flex; flex-wrap: wrap; gap: 4px; margin: 0 0 28px; padding: 6px; background: #e4eee8; border-radius: 14px; }
+.workflow-path button { display: flex; align-items: center; gap: 8px; min-height: 42px; padding: 7px 14px; border-radius: 9px; color: #49635a; font-size: 14px; font-weight: 600; }
+.workflow-path button:hover, .workflow-path button[aria-current="step"] { background: white; color: #16594b; }
+.workflow-path button span { display: grid; place-items: center; height: 23px; width: 23px; border-radius: 50%; background: #cfdfd5; color: #31594c; font-size: 12px; }
+.workflow-path button[aria-current="step"] span { background: #176b5b; color: white; }
+.workflow-heading { color: var(--work-ink); font-size: 19px; font-weight: 700; letter-spacing: -.02em; }
+.workflow-copy { color: var(--work-muted); font-size: 13px; line-height: 1.5; margin-top: 5px; }
+main input:focus, main select:focus, main textarea:focus { border-color: #428e7b; box-shadow: 0 0 0 3px #cce7dc; }
+button:focus-visible, a:focus-visible { outline: 2px solid #176b5b; outline-offset: 3px; }
+main input[type=checkbox], main input[type=radio] { accent-color: #176b5b; }
+table { font-variant-numeric: tabular-nums; }
+@media (max-width: 640px) { .workflow-path { gap: 0; } .workflow-path button { flex: 1 1 50%; } }

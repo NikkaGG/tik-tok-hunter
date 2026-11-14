@@ -1,0 +1,7 @@
+__pycache__/
+.venv/
+data/
+
+tests/.tmp/
+.playwright-mcp/
+.impeccable/

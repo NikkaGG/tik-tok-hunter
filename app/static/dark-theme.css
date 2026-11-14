@@ -1,0 +1,113 @@
+/* Dark surfaces preserve the app's green navigation and semantic status colors. */
+:root {
+  color-scheme: dark;
+  --work-ink: #e4ede9;
+  --work-muted: #a4b5ad;
+  --work-line: #33443e;
+  --work-accent: #77cbb0;
+  --surface-page: #101916;
+  --surface-nav: #131f1b;
+  --surface-card: #1a2822;
+  --surface-raised: #22332b;
+  --surface-hover: #2a3e34;
+}
+
+html body.text-slate-800 { background: var(--surface-page); color: var(--work-ink); }
+body ::selection { background: #3a715c; color: #f2fff8; }
+body { scrollbar-color: #516a5d var(--surface-page); }
+aside { background: var(--surface-nav) !important; border-color: var(--work-line) !important; }
+.tab-btn { color: #b0c3b9; }
+.tab-btn:hover { background: var(--surface-hover); color: #f0f8f3; }
+.tab-btn.active { background: #294d3c; color: #d4f5e3; }
+.tab-btn.active svg, .tab-btn.active .tab-hint { color: #a8dfc3; }
+.tab-btn.active .step-num { background: #78cba4; color: #112b1e; }
+.step-num { background: #283a31; color: #bbd0c4; }
+.nav-label, aside .tab-hint, aside .text-slate-400 { color: #9ab0a4; }
+.workflow-path { background: #1b2d24; }
+.workflow-path button { color: #b2c9bb; }
+.workflow-path button:hover, .workflow-path button[aria-current="step"] { background: #304c3d; color: #e4f9ec; }
+.workflow-path button span { background: #354d40; color: #c8dfd1; }
+.workflow-path button[aria-current="step"] span { background: #87d2ac; color: #102a1c; }
+
+html body :is(.bg-white, .bg-paper) { background-color: var(--surface-card); }
+html body :is(.bg-slate-50, .bg-slate-100, .bg-slate-200, .bg-paper\/40) { background-color: var(--surface-raised); }
+html body .bg-slate-300 { background-color: #43584c; }
+html body .bg-slate-900 { background-color: #365b47; }
+html body :is(.hover\:bg-slate-50, .hover\:bg-slate-100, .hover\:bg-paper):hover { background-color: var(--surface-hover); }
+html body .hover\:bg-slate-700:hover { background-color: #476f57; }
+html body :is(.border-slate-100, .border-slate-200, .border-slate-200\/80, .border-slate-300, .border-line, .border-black\/5) { border-color: var(--work-line); }
+html body :is(.text-slate-900, .text-slate-800, .text-slate-700, .text-ink) { color: #e4ede9; }
+html body :is(.text-slate-600, .text-slate-500, .text-slate-400, .text-slate-300, .text-muted) { color: #adbbb3; }
+html body :is(.hover\:text-slate-800, .hover\:text-slate-700, .hover\:text-slate-600):hover { color: #f2faf5; }
+html body :is(.text-indigo-600, .text-indigo-700, .text-indigo-800, .text-find-700) { color: #b8bdff; }
+html body .\!text-indigo-600 { color: #b8bdff !important; }
+html body :is(.bg-indigo-50, .bg-indigo-50\/50, .bg-indigo-50\/60, .bg-indigo-100, .bg-find-50) { background-color: #293047; }
+html body :is(.border-indigo-100, .border-indigo-200) { border-color: #4c557c; }
+html body :is(.bg-emerald-50, .bg-emerald-50\/90, .bg-emerald-100, .bg-emerald-200) { background-color: #1b3a2c; }
+html body :is(.text-emerald-600, .text-emerald-700, .text-emerald-800, .text-emerald-900, .text-emerald-950) { color: #9de3bd; }
+html body :is(.border-emerald-200, .border-emerald-300, .border-emerald-400) { border-color: #3c7757; }
+html body .hover\:bg-emerald-50:hover { background-color: #294c39; }
+html body :is(.bg-sky-50, .bg-sky-100, .bg-sky-200) { background-color: #203a49; }
+html body :is(.text-sky-700, .text-sky-800, .text-blue-800) { color: #a9d9f3; }
+html body :is(.border-sky-200, .border-sky-300) { border-color: #426b7e; }
+html body :is(.bg-amber-50, .bg-amber-100, .bg-queue-50) { background-color: #45351e; }
+html body :is(.text-amber-600, .text-amber-700, .text-amber-800, .text-amber-900, .text-queue-700) { color: #f2cf8f; }
+html body :is(.border-amber-200, .border-amber-300) { border-color: #7c6237; }
+html body :is(.bg-rose-50, .bg-rose-100, .bg-rose-200) { background-color: #49292c; }
+html body :is(.text-rose-600, .text-rose-700, .text-rose-800) { color: #ffb6b9; }
+html body :is(.border-rose-200, .border-rose-300, .border-rose-400) { border-color: #805055; }
+html body :is(.hover\:bg-rose-50, .hover\:bg-rose-100):hover { background-color: #5b3438; }
+html body :is(.bg-violet-100) { background-color: #3b304a; }
+html body :is(.text-violet-700, .text-violet-800) { color: #d5c1f4; }
+
+html body :is(input:not([type=checkbox]):not([type=radio]), select, textarea) {
+  background-color: #17241e;
+  color: #e4ede9;
+  border-color: #40574a;
+  caret-color: #a7e2c0;
+}
+html body :is(input, textarea)::placeholder { color: #a1b1a7; opacity: 1; }
+html body :is(input, select, textarea):focus { border-color: #87cfa9; box-shadow: 0 0 0 3px #5aab7b40; }
+html body :is(input[type=checkbox], input[type=radio]) { accent-color: #7acb9e; }
+button:focus-visible, a:focus-visible { outline-color: #9cdeb6; }
+code { background: #304138; color: #dcf0e3; }
+
+/* The account manager and preparation dialog have their own component styles. */
+[data-panel="accounts"], #acc-header-actions { color: #e4ede9; }
+html body [data-panel="accounts"] :is(.card, .acc-workspace, .btn-ghost) { background: var(--surface-card); border-color: var(--work-line); color: #e4ede9; }
+html body [data-panel="accounts"] :is(.btn-ghost, .btn-quiet):hover { background: var(--surface-hover); border-color: #587264; color: #f0f8f3; }
+html body [data-panel="accounts"] .hint { color: #adbbb3; }
+html body section[data-panel="accounts"] .field { background: #17241e; color: #e4ede9; border-color: #40574a; }
+.acc-overview, .acc-filter-label, .acc-table-footer, .acc-editor-help, .acc-editor-section .label { color: #adbbb3; }
+.acc-overview strong, .acc-name a { color: #e4ede9; }
+.acc-identity > .bg-gradient-to-br { background: #354b3e; color: #dcefe1; }
+.acc-row-caption, .acc-session-time, .acc-editor-tabs button, .acc-editor-set small { color: #adbbb3; }
+.acc-filters, [data-panel="accounts"] .acc-table thead th, .acc-editor-session { background: #203129; color: #b2c5ba; border-color: var(--work-line); }
+.acc-bulk-bar { background: #293047; border-color: #4c557c; }
+.acc-table td, .acc-table-footer, .acc-editor-tabs, .acc-editor-danger { border-color: var(--work-line); }
+.acc-table tbody tr:hover, .acc-table tbody tr.acc-row-selected { background: #263a2f; }
+.acc-search-tag, .acc-set-chip { background: #304139; color: #c1d0c7; }
+.acc-session-active { color: #8adfb3; }
+.acc-session-checking, .acc-editor-tabs button[aria-selected=true] { color: #bfc5ff; }
+.acc-session-warning { color: #f0cb8b; }
+.acc-session-error, .acc-session-error-text, .acc-editor-error { color: #ffb4b8; }
+.acc-settings-btn:hover, .acc-more:hover { background: #31453a; color: #e0f1e6; }
+.acc-editor-set { border-color: var(--work-line); }
+.acc-editor-set:has(input:checked) { background: #30394a; border-color: #7f8bb7; }
+.account-monitor { background: #1a2a22; border-color: var(--work-line); }
+.monitor-heading h2, .monitor-username { color: #d8e8de; }
+.monitor-description, .monitor-total, .monitor-footer button, .monitor-empty, .monitor-settings-copy { color: #aebfb4; }
+.monitor-account:hover, .monitor-account:focus-visible { background: #30473a; }
+.monitor-footer { border-color: var(--work-line); }
+.monitor-expand { color: #c1d5c8 !important; }
+.monitor-mobile { background: #203129; border-color: var(--work-line); color: #d5e8dc; }
+.prepare-dialog, .prepare-footer { background: var(--surface-card); color: #e4ede9; }
+.prepare-header, .prepare-footer, .prepare-preview, .prepare-choice { border-color: var(--work-line); }
+.prepare-copy, .prepare-choice-main small, .prepare-footer p, .prepare-preview small { color: #adbbb3; }
+.prepare-choice:has(input:checked) { background: #2a3b47; border-color: #8e9ccb; }
+.prepare-note { background: #26382e; }
+.prepare-note.warning { background: #45351e; color: #f2cf8f; }
+.prepare-note.success { background: #1b3a2c; color: #9de3bd; }
+.prepare-fix, .prepare-preview a { color: #c4c8ff; }
+.prepare-results summary { color: #c4d3ca; }
+.prepare-btn { border-color: #516d5d; }
