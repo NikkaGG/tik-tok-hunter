@@ -160,6 +160,13 @@ def connect_account(data: ConnectIn):
         path.unlink(missing_ok=True)
         raise
 
+@router.get("/tasks/{task_id}/summary")
+def get_task_summary(task_id: int, db: Session = Depends(get_db)):
+    if not db.get(TaskRun, task_id):
+        raise HTTPException(404, "Задача не найдена")
+    return tasks.task_summary(db, task_id)
+
+
 @router.get("/tasks/{task_id}", response_model=TaskOut)
 def get_task(task_id: int, db: Session = Depends(get_db)):
     task = db.get(TaskRun, task_id)
