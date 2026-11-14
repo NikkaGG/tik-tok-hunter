@@ -744,6 +744,126 @@ class MultiAccountTests(unittest.TestCase):
             self.assertEqual(draft.status, 'draft')
             self.assertFalse(draft.sending)
 
+
+    def test_mixed_local_errors_continue_and_summary_survives_restart(self):
+        aid = self.accounts[0].id
+        dids = [self.prepare([v.id], [aid])["created"][0]["id"] for v in self.videos[:3]]
+        with patch.object(tasks, "enqueue"):
+            job = tasks.submit_batch(AutoCommentTaskIn(draft_ids=dids))["tasks"][0]
+
+        @asynccontextmanager
+        async def ctx(**kwargs):
+            yield MagicMock()
+
+        outcomes = [
+            CommentResult(False, "Ограничено между регионами (код 10204)", "region_restricted"),
+            CommentResult(True, "TikTok принял комментарий"),
+            CommentResult(False, "HTTP 503 after retries", "navigation_failed"),
+        ]
+        with patch.object(tasks.ts, "open_context", ctx), \
+             patch.object(tasks, "verify_context", new_callable=AsyncMock), \
+             patch.object(tasks.ts, "post_comment_on_video", new_callable=AsyncMock, side_effect=outcomes) as post, \
+             patch("asyncio.sleep", new_callable=AsyncMock):
+            tasks._execute(job.id)
+        self.db.expire_all()
+        self.assertEqual(post.await_count, 3)
+        self.assertEqual(self.db.get(TaskRun, job.id).status, "partial")
+        self.assertEqual([self.db.get(Draft, d).status for d in dids], ["draft", "sent", "draft"])
+        self.assertEqual([self.db.get(Draft, d).error_code for d in dids], ["region_restricted", None, "navigation_failed"])
+        expected = dict(published=1, skipped=0, errors=2, review=0, unprocessed=0, total=3)
+        self.assertEqual(tasks.task_summary(self.db, job.id), expected)
+        from app.routers import tasks as task_router
+        self.assertEqual(task_router.get_task_summary(job.id, self.db), expected)
+        tasks.recover_interrupted()
+        with self.factory() as reopened:
+            self.assertEqual(tasks.task_summary(reopened, job.id), expected)
+            self.assertEqual(reopened.get(Draft, dids[0]).status, "draft")
+
+        # Generic automatic runs must not retry a documented regional block.
+        with patch.object(tasks, "enqueue"):
+            next_job = tasks.submit_batch(AutoCommentTaskIn(account_id=aid))["tasks"][0]
+        self.assertEqual(tasks.task_summary(self.db, next_job.id)["total"], 1)
+        self.assertEqual(self.db.get(Draft, dids[0]).last_task_id, job.id)
+
+    def test_account_network_threshold_stops_only_this_account(self):
+        aid, other = self.accounts[0].id, self.accounts[1].id
+        first = [self.prepare([v.id], [aid])["created"][0]["id"] for v in self.videos[:3]]
+        second = self.prepare([self.videos[3].id], [other])["created"][0]["id"]
+        with patch.object(tasks, "enqueue"):
+            jobs = tasks.submit_batch(AutoCommentTaskIn(draft_ids=first + [second]))["tasks"]
+        job_by_account = {j.params["account_id"]: j for j in jobs}
+
+        @asynccontextmanager
+        async def ctx(**kwargs):
+            yield MagicMock()
+
+        with patch.object(tasks.ts, "open_context", ctx), \
+             patch.object(tasks, "verify_context", new_callable=AsyncMock), \
+             patch.object(tasks.app_settings, "network_failure_threshold", return_value=2), \
+             patch.object(tasks.ts, "post_comment_on_video", new_callable=AsyncMock,
+                          side_effect=[CommentResult(False, "HTTP 503", "navigation_failed")] * 2 +
+                                      [CommentResult(True, "OK")]) as post, \
+             patch("asyncio.sleep", new_callable=AsyncMock):
+            tasks._execute(job_by_account[aid].id)
+            tasks._execute(job_by_account[other].id)
+        self.db.expire_all()
+        self.assertEqual(post.await_count, 3)
+        self.assertEqual(self.db.get(TaskRun, job_by_account[aid].id).status, "failed")
+        self.assertEqual(tasks.task_summary(self.db, job_by_account[aid].id)["unprocessed"], 1)
+        self.assertEqual(tasks.task_summary(self.db, job_by_account[aid].id)["errors"], 2)
+        self.assertEqual(self.db.get(TaskRun, job_by_account[other].id).status, "done")
+        self.assertEqual(self.db.get(Draft, second).status, "sent")
+        self.assertTrue(sessions.state_path(other).exists())
+
+    def test_uncertain_after_click_requires_manual_review_and_blocks_resend(self):
+        aid = self.accounts[0].id
+        dids = [self.prepare([v.id], [aid])["created"][0]["id"] for v in self.videos[:2]]
+        with patch.object(tasks, "enqueue"):
+            job = tasks.submit_batch(AutoCommentTaskIn(draft_ids=dids))["tasks"][0]
+
+        @asynccontextmanager
+        async def ctx(**kwargs):
+            yield MagicMock()
+
+        with patch.object(tasks.ts, "open_context", ctx), \
+             patch.object(tasks, "verify_context", new_callable=AsyncMock), \
+             patch.object(tasks.ts, "post_comment_on_video", new_callable=AsyncMock,
+                          return_value=CommentResult(False, "After click: uncertain", "uncertain")) as post:
+            tasks._execute(job.id)
+        self.db.expire_all()
+        self.assertEqual(post.await_count, 1)
+        self.assertEqual(self.db.get(Draft, dids[0]).status, "review")
+        self.assertEqual(self.db.get(Draft, dids[1]).status, "draft")
+        self.assertEqual(tasks.task_summary(self.db, job.id)["review"], 1)
+        self.assertEqual(tasks.task_summary(self.db, job.id)["unprocessed"], 1)
+        tasks.recover_interrupted()
+        self.assertEqual(self.db.get(Draft, dids[0]).status, "review")
+        with patch.object(tasks, "enqueue"):
+            with self.assertRaises(HTTPException):
+                tasks.submit_batch(AutoCommentTaskIn(draft_ids=[dids[0]]))
+
+    def test_permanent_video_failure_is_skipped_without_losing_next_comment(self):
+        aid = self.accounts[0].id
+        dids = [self.prepare([v.id], [aid])["created"][0]["id"] for v in self.videos[:2]]
+        with patch.object(tasks, "enqueue"):
+            job = tasks.submit_batch(AutoCommentTaskIn(draft_ids=dids))["tasks"][0]
+
+        @asynccontextmanager
+        async def ctx(**kwargs):
+            yield MagicMock()
+
+        with patch.object(tasks.ts, "open_context", ctx), \
+             patch.object(tasks, "verify_context", new_callable=AsyncMock), \
+             patch.object(tasks.ts, "post_comment_on_video", new_callable=AsyncMock,
+                          side_effect=[CommentResult(False, "HTTP 404", "video_unavailable"),
+                                       CommentResult(True, "OK")]), \
+             patch("asyncio.sleep", new_callable=AsyncMock):
+            tasks._execute(job.id)
+        self.db.expire_all()
+        self.assertEqual(self.db.get(TaskRun, job.id).status, "partial")
+        self.assertEqual([self.db.get(Draft, d).status for d in dids], ["skipped", "sent"])
+        self.assertEqual(tasks.task_summary(self.db, job.id)["skipped"], 1)
+
     def test_migration_is_idempotent_and_backs_up(self):
         path = self.root / 'legacy.db'
         old = create_engine(f'sqlite:///{path}')
