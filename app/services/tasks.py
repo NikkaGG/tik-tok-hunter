@@ -26,6 +26,11 @@ _active = {}  # task id -> account id
 _loops = {}
 _stopping = False
 
+# Settable in data/settings.json; unrelated accounts have independent failures.
+LOCAL_VIDEO_ERRORS = {"page_unavailable", "region_restricted", "navigation_failed",
+                      "access_denied", "video_unavailable", "comments_disabled",
+                      "input_not_found", "button_not_found", "unknown", "api_error"}
+
 
 def _captcha_progress(task_id, event):
     kinds = {'unknown': 'не определён', 'rotate': 'поворот', 'slide': 'пазл',
@@ -128,7 +133,7 @@ def recover_interrupted():
             status="failed", error="Прервано перезапуском приложения", finished_at=datetime.now()))
         for d in db.scalars(select(Draft).where(Draft.task_id.is_not(None))):
             if d.sending:
-                d.status, d.result = "review", "Прервано во время публикации. Проверьте вручную"
+                d.status, d.result, d.error_code = "review", "Прервано во время публикации. Проверьте вручную", "uncertain"
                 text_library.finish(db, d, "review")
             d.sending, d.task_id = 0, None
         db.commit()
@@ -177,6 +182,35 @@ def _set(task_id, **fields):
     with SessionLocal() as db:
         db.execute(update(TaskRun).where(TaskRun.id == task_id, TaskRun.status != "cancelled").values(**fields))
         db.commit()
+
+
+def task_summary(db, task_id):
+    """Recalculate task counts from durable draft records, including after restarts."""
+    counts = {"published": 0, "skipped": 0, "errors": 0, "review": 0, "unprocessed": 0}
+    for state, code in db.execute(select(Draft.status, Draft.error_code).where(Draft.last_task_id == task_id)):
+        if state == "sent":
+            counts["published"] += 1
+        elif state == "skipped":
+            counts["skipped"] += 1
+        elif state == "review":
+            counts["review"] += 1
+        elif code:
+            counts["errors"] += 1
+        else:
+            counts["unprocessed"] += 1
+    counts["total"] = sum(counts.values())
+    return counts
+
+
+def task_summary_text(counts):
+    return (f"Отправлено: {counts['published']}, пропущено: {counts['skipped']}, "
+            f"ошибок: {counts['errors']}, проверить: {counts['review']}, "
+            f"не обработано: {counts['unprocessed']}")
+
+
+def persisted_summary(task_id):
+    with SessionLocal() as db:
+        return task_summary(db, task_id)
 
 
 def _run_coro(coro, task_id=None):
@@ -256,7 +290,13 @@ def _execute(task_id):
             result, found = _run_coro(ts.test_proxy(), task_id), 0
         else:
             raise ValueError("Неизвестная задача")
-        _set(task_id, status="done", result=result, found=found, finished_at=datetime.now())
+        if kind == "auto_comment":
+            summary = persisted_summary(task_id)
+            result = task_summary_text(summary)
+            final_status = "partial" if any(summary[k] for k in ("skipped", "errors", "review", "unprocessed")) else "done"
+        else:
+            final_status = "done"
+        _set(task_id, status=final_status, result=result, found=found, finished_at=datetime.now())
     except BaseException as e:
         if not isinstance(e, (Exception, asyncio.CancelledError)):
             raise
@@ -269,13 +309,15 @@ def _execute(task_id):
                     account.session_error = message
                     account.session_checked_at = datetime.now()
                     db.commit()
+        if kind == "auto_comment":
+            message += " · " + task_summary_text(persisted_summary(task_id))
         _set(task_id, status="failed", error=message, finished_at=datetime.now())
         log_event("tasks", f"Задача #{task_id}: {message}", level="WARNING")
     finally:
         with SessionLocal() as db:
             for d in db.scalars(select(Draft).where(Draft.task_id == task_id)):
                 if d.sending:
-                    d.status, d.result = "review", "Результат не подтверждён. Проверьте вручную"
+                    d.status, d.result, d.error_code = "review", "Результат не подтверждён. Проверьте вручную", "uncertain"
                     text_library.finish(db, d, "review")
                 d.sending, d.task_id = 0, None
             db.commit()
@@ -415,10 +457,10 @@ def _run_auto_comment(task_id, params):
     binding = browser_binding.get()
     if not binding["path"].exists():
         raise ts.SessionError("У аккаунта нет сессии. Подключите его")
-    sent, skipped = 0, 0
+    sent, skipped, errors, review, consecutive_network = 0, 0, 0, 0, 0
 
     async def process():
-        nonlocal sent, skipped
+        nonlocal sent, skipped, errors, review, consecutive_network
         _set(task_id, result="Запуск браузера")
         async with ts.open_context(headless=not visible) as ctx:
             ts.comment_visible.set(visible)
@@ -431,7 +473,7 @@ def _run_auto_comment(task_id, params):
             for index, draft_id in enumerate(ids):
                 if is_cancelled(task_id):
                     break
-                _set(task_id, result=f"Ролик {index + 1} из {len(ids)} · отправлено: {sent}, пропущено: {skipped}")
+                _set(task_id, result=f"Ролик {index + 1} из {len(ids)} · отправлено: {sent}, пропущено: {skipped}, ошибок: {errors}, проверить: {review}, осталось: {len(ids) - index}")
                 # Verify immediately before every publication, including after captcha/login changes.
                 ts.session_verified.set(False)
                 await verify_context(ctx, binding["username"])
@@ -460,6 +502,7 @@ def _run_auto_comment(task_id, params):
                 with SessionLocal() as db:
                     d = db.get(Draft, draft_id)
                     d.sending, d.result = 0, result.message
+                    d.error_code = None if result.success else (result.error_code or "unknown")
                     if result.success:
                         d.status, d.sent_at = "sent", datetime.now()
                         d.video.status = "replied"
@@ -467,24 +510,33 @@ def _run_auto_comment(task_id, params):
                         sent += 1
                     elif result.error_code == "uncertain":
                         d.status = "review"
+                        review += 1
                         text_library.finish(db, d, "review")
                     elif result.error_code in ("video_unavailable", "comments_disabled"):
                         d.status = "skipped"
                         text_library.release(db, d.id)
                         skipped += 1
+                    else:
+                        errors += 1
                     db.commit()
-                _set(task_id, found=sent, result=f"Отправлено: {sent}, пропущено: {skipped}")
+                _set(task_id, found=sent, result=task_summary_text(persisted_summary(task_id)))
+                if result.error_code == "navigation_failed":
+                    consecutive_network += 1
+                else:
+                    consecutive_network = 0
+                if consecutive_network >= app_settings.network_failure_threshold():
+                    raise ts.SessionError(f"Сетевая ошибка у {consecutive_network} разных роликов подряд. Проверьте подключение и прокси аккаунта")
                 if not result.success and result.error_code == "session_expired":
                     raise ts.SessionExpiredError(result.message)
                 if not result.success and result.error_code in ("captcha", "rate_limit"):
                     raise ts.SessionError(result.message)
-                if not result.success and result.error_code not in ("video_unavailable", "comments_disabled"):
+                if not result.success and result.error_code not in LOCAL_VIDEO_ERRORS:
                     raise RuntimeError(result.message)
                 if index < len(ids) - 1:
                     _set(task_id, result=f"Пауза перед следующим роликом · отправлено: {sent}, пропущено: {skipped}")
                     await asyncio.sleep(random.uniform(params.get("delay_min_s", 20), params.get("delay_max_s", 45)))
     _run_coro(process(), task_id)
-    return f"Отправлено: {sent}, пропущено: {skipped}", sent
+    return f"Отправлено: {sent}, пропущено: {skipped}, ошибок: {errors}, проверить: {review}", sent
 
 
 @coordinated
@@ -509,6 +561,8 @@ def submit_batch(data):
                 claimed = claimed.where(Draft.account_id.is_not(None))
             skipped_claimed = db.scalar(claimed) or 0
             q = q.where(Draft.task_id.is_(None))
+            # A proven regional restriction does not change without user intervention.
+            q = q.where((Draft.error_code.is_(None)) | (Draft.error_code != "region_restricted"))
         if data.draft_ids is not None:
             q = q.where(Draft.id.in_(data.draft_ids))
         if data.account_id:
@@ -547,6 +601,8 @@ def submit_batch(data):
             db.flush()
             for d in items:
                 d.task_id = task.id
+                d.last_task_id = task.id
+                d.error_code = None
                 if not db.scalar(select(TextUse.id).where(TextUse.draft_id == d.id, TextUse.state == "reserved")):
                     text_library.record(db, d)
                 db.execute(update(TextUse).where(TextUse.draft_id == d.id, TextUse.state == "reserved").values(account_id=aid))
