@@ -195,6 +195,8 @@ class DraftOut(BaseModel):
     repeated: bool = False
     result: str | None = None
     task_id: int | None = None
+    last_task_id: int | None = None
+    error_code: str | None = None
 
 
 # ---------- Задачи и сессия парсера ----------
